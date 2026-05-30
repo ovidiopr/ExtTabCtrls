@@ -2,12 +2,12 @@
   "package_name": "TExtTabCtrl",
   "display_name": "ExtTabCtrl",
   "category": "Visual Controls",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Ovidio Y. Peña Rodríguez",
   "description": "A feature-rich custom tab control for Lazarus including Chrome, MacOS, and Delphi styles with drag-reordering and vertical orientation support.",
   "license": "GPL-2.0-or-later",
   "homepage_url": "https://github.com/ovidiopr/ExtTabCtrl",
-  "download_url": "https://github.com/ovidiopr/ExtTabCtrl/archive/refs/tags/v1.0.0.zip",
+  "download_url": "https://github.com/ovidiopr/ExtTabCtrl/archive/refs/tags/v1.1.0.zip",
   "packages": [
     {
       "filename": "texttabctrl.lpk",

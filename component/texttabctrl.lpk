@@ -4,6 +4,7 @@
     <PathDelim Value="\"/>
     <Name Value="TExtTabCtrl"/>
     <Type Value="RunAndDesignTime"/>
+    <Author Value="Ovidio Y. Peña Rodríguez"/>
     <CompilerOptions>
       <Version Value="11"/>
       <PathDelim Value="\"/>
@@ -11,7 +12,13 @@
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Version Major="1"/>
+    <Description Value="A feature-rich custom tab control for Lazarus including Chrome, MacOS, and Delphi styles with drag-reordering and vertical orientation support."/>
+    <License Value="This component is released under the GNU General Public License v2 or later (GPL-2.0-or-later).
+
+You are free to use, study, modify, and redistribute it under the terms of the GPL. If you distribute a modified version, you must do so under the same license.
+
+See https://www.gnu.org/licenses/gpl-2.0.html for the full license text."/>
+    <Version Major="1" Minor="1"/>
     <Files>
       <Item>
         <Filename Value="exttabctrl.pas"/>
