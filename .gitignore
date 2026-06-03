@@ -1,6 +1,7 @@
 # My own files/dirs
 old/
 test/
+bin/
 
 # Node artifact files
 node_modules/
