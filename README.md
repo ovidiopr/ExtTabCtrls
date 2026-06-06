@@ -21,7 +21,7 @@ A feature-rich custom tab control for [Lazarus](https://www.lazarus-ide.org/) / 
 - **Middle-click to close**: optional.
 - **Keyboard navigation**: arrow keys (Left/Right/Up/Down), Home, End; focus is obtained by clicking or via Tab key.
 - **Mouse-wheel navigation**: scroll through tabs with the mouse wheel.
-- **Per-tab properties**: each tab (`TExtTab`) has `Caption`, `Color` (accent stripe), `Visible`, `Hint`, `ImageIndex`, `Image` (standalone bitmap), `Value` (string), `Data` (object), and per-tab `FontOptions`.
+- **Per-tab properties**: each tab (`TExtTab`) has `Caption`, `Color` (tab background), `StripeColor` (accent stripe), `Visible`, `Hint`, `ImageIndex`, `Image` (standalone bitmap), `Value` (string), `Data` (object), and per-tab `FontOptions`.
 - **Image list support**: link a `TCustomImageList` via the `Images` property; images are drawn alongside tab captions and optionally rotated for vertical tabs.
 - **Hint support**: per-tab hints, with automatic fallback to the caption; scroll and add button hints are configurable.
 - **Batch update**: `BeginUpdate`/`EndUpdate` suppress layout recalculation and repaints during bulk operations.
