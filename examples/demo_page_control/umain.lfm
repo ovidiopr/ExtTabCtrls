@@ -20,14 +20,17 @@ object Form1: TForm1
     Tabs = <    
       item
         Caption = 'Style'
+        Color = 16777129
         ShowCloseButton = False
       end    
       item
         Caption = 'Position'
+        Color = 16777129
         ShowCloseButton = False
       end    
       item
         Caption = 'Log'
+        Color = 16777129
         ShowCloseButton = False
       end>
     TabIndex = 0

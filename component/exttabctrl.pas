@@ -86,6 +86,7 @@ type
   private
     FCaption: TCaption;
     FColor: TColor;
+    FStripeColor: TColor;
     FVisible: Boolean;
     FValue: String;
     FData: TObject;
@@ -101,6 +102,7 @@ type
     FCachedImageRotation: Integer;
     procedure SetCaption(AValue: TCaption);
     procedure SetColor(AValue: TColor);
+    procedure SetStripeColor(AValue: TColor);
     procedure SetVisible(AValue: Boolean);
     procedure SetImage(AValue: TBitmap);
     function  GetImage: TBitmap;
@@ -115,6 +117,7 @@ type
   published
     property Caption: TCaption read FCaption write SetCaption;
     property Color: TColor read FColor write SetColor default clNone;
+    property StripeColor: TColor read FStripeColor write SetStripeColor default clNone;
     property Visible: Boolean read FVisible write SetVisible default True;
     property Value: String read FValue write FValue;
     property Data: TObject read FData write FData;
@@ -529,6 +532,14 @@ begin
     FOwnerCtrl.Invalidate;
 end;
 
+procedure TExtTab.SetStripeColor(AValue: TColor);
+begin
+  if FStripeColor = AValue then Exit;
+  FStripeColor := AValue;
+  if Assigned(FOwnerCtrl) then
+    FOwnerCtrl.Invalidate;
+end;
+
 procedure TExtTab.SetVisible(AValue: Boolean);
 var
   WasActive: Boolean;
@@ -611,6 +622,7 @@ begin
   FFontOptions.OnRedraw := @Redraw;
   FVisible := True;
   FColor := clNone;
+  FStripeColor := clNone;
   FImageIndex := -1;
   FTextWidth := -1;
   FTextHeight := -1;
@@ -1240,7 +1252,7 @@ begin
     end;
     NextLeft := ClientWidth - ScrollNextW;
     if ShowAdd then
-      NextLeft := ClientWidth - AddW;
+      NextLeft := NextLeft - AddW;
     FBtnScrollNext.SetBounds(NextLeft, NextTop, ScrollNextW, ScaledTabSize);
   end
   else
@@ -1309,7 +1321,7 @@ begin
     end;
     NextTop := ClientHeight - ScrollNextH;
     if ShowAdd then
-      NextTop := ClientHeight - AddH;
+      NextTop := NextTop - AddH;
     if FTabPosition = tpLeft then
     begin
       FBtnScrollNext.AnchorSide[akLeft].Control := Self;
@@ -1813,9 +1825,9 @@ var
   IndicatorRect, TextBounds: TRect;
   Thick: Integer;
 begin
-  if (Tab.Color = clNone) then Exit;
+  if (Tab.StripeColor = clNone) then Exit;
 
-  ACanvas.Brush.Color := Tab.Color;
+  ACanvas.Brush.Color := Tab.StripeColor;
   ACanvas.Pen.Style := psClear;
   Thick := GetScale(3);
   TextBounds := GetTabTextBounds(ACanvas, R, Tab);
@@ -1836,15 +1848,28 @@ end;
 procedure TExtTabCtrl.DrawFlatTab(ACanvas: TCanvas; R: TRect; IsActive: Boolean; Tab: TExtTab);
 var
   P: array[0..3] of TPoint;
+  BaseClr: TColor;
 begin
   // Draw Background
-  ACanvas.Brush.Color := IfThen(IsActive, Color, IfThen(Tab.Index =
-    FHoverTab, BlendColors(clBtnFace, clHighlight, 0.2), clBtnFace));
+  if IsActive then
+    ACanvas.Brush.Color := Color
+  else
+  begin
+    if (Tab.Color <> clNone) then
+      BaseClr := Tab.Color
+    else
+      BaseClr := clBtnFace;
+
+    if (Tab.Index = FHoverTab) then
+      ACanvas.Brush.Color := BlendColors(BaseClr, clHighlight, 0.2)
+    else
+      ACanvas.Brush.Color := BaseClr;
+  end;
   ACanvas.Brush.Style := bsSolid;
   ACanvas.FillRect(R);
 
   // Draw Color Stripe
-  if (Tab.Color <> clNone) then
+  if (Tab.StripeColor <> clNone) then
   begin
     DrawColorStripe(ACanvas, R, Tab);
 
@@ -1890,25 +1915,36 @@ end;
 
 procedure TExtTabCtrl.DrawButtonTab(ACanvas: TCanvas; R: TRect; IsActive: Boolean; Tab: TExtTab);
 var
-  LightClr, ShadowClr, BackClr: TColor;
+  BaseClr, LightClr, ShadowClr, BackClr: TColor;
 begin
-  LightClr := clBtnHighlight;
-  ShadowClr := clBtnShadow;
+  if (Tab.Color <> clNone) then
+  begin
+    BaseClr := Tab.Color;
+    LightClr := BlendColors(BaseClr, clWhite, 0.4);
+    ShadowClr := BlendColors(BaseClr, clBlack, 0.4);
+  end
+  else
+  begin
+    BaseClr := clBtnFace;
+    LightClr := clBtnHighlight;
+    ShadowClr := clBtnShadow;
+  end;
+
 
   // Determine and Draw Background
   if IsActive then
-    BackClr := BlendColors(clBtnFace, clBlack, 0.05)
+    BackClr := BlendColors(BaseClr, clBlack, 0.05)
   else if Tab.Index = FHoverTab then
-    BackClr := BlendColors(clBtnFace, clWhite, 0.4)
+    BackClr := BlendColors(BaseClr, clHighlight, 0.4)
   else
-    BackClr := clBtnFace;
+    BackClr := BaseClr;
 
   ACanvas.Brush.Color := BackClr;
   ACanvas.Brush.Style := bsSolid;
   ACanvas.FillRect(R);
 
   // Draw Color Stripe
-  if (Tab.Color <> clNone) then
+  if (Tab.StripeColor <> clNone) then
   begin
     DrawColorStripe(ACanvas, R, Tab);
 
@@ -1950,16 +1986,25 @@ procedure TExtTabCtrl.DrawDelphiTab(ACanvas: TCanvas; R: TRect; IsActive: Boolea
 var
   P: array[0..3] of TPoint;
   S: Integer;
+  BaseClr: TColor;
 begin
   S := GetScale(3); // Angle slant amount
 
   // Set Colors and draw background
   if IsActive then
     ACanvas.Brush.Color := Color
-  else if Tab.Index = FHoverTab then
-    ACanvas.Brush.Color := BlendColors(clBtnFace, clWhite, 0.8)
   else
-    ACanvas.Brush.Color := clBtnFace;
+  begin
+    if (Tab.Color <> clNone) then
+      BaseClr := Tab.Color
+    else
+      BaseClr := clBtnFace;
+
+    if Tab.Index = FHoverTab then
+      ACanvas.Brush.Color := BlendColors(BaseClr, clHighlight, 0.8)
+    else
+      ACanvas.Brush.Color := BaseClr;
+  end;
 
   ACanvas.Pen.Color := clBtnShadow;
   ACanvas.Brush.Style := bsSolid;
@@ -1995,7 +2040,7 @@ begin
   ACanvas.Polygon(P);
 
   // Draw Color Stripe following the narrower edge
-  if (Tab.Color <> clNone) then
+  if (Tab.StripeColor <> clNone) then
   begin
     DrawColorStripe(ACanvas, R, Tab);
 
@@ -2032,6 +2077,7 @@ procedure TExtTabCtrl.DrawChromeTab(ACanvas: TCanvas; R: TRect; IsActive: Boolea
 var
   Radius: Integer;
   TextBounds: TRect;
+  BaseClr: TColor;
 begin
   Radius := GetScale(8);
 
@@ -2043,10 +2089,15 @@ begin
   end
   else
   begin
+    if (Tab.Color <> clNone) then
+      BaseClr := Tab.Color
+    else
+      BaseClr := Color;
+
     if Tab.Index = FHoverTab then
     begin
       // Light subtle hover
-      ACanvas.Brush.Color := BlendColors(Color, clWhite, 0.7);
+      ACanvas.Brush.Color := BlendColors(BaseClr, clHighlight, 0.7);
       ACanvas.Brush.Style := bsSolid;
     end
     else
@@ -2085,8 +2136,7 @@ begin
     if IsHorizontal then
       ACanvas.Line(R.Right - 1, R.Top + GetScale(6), R.Right - 1, R.Bottom - GetScale(6))
     else
-      ACanvas.Line(R.Left + GetScale(6), R.Bottom - 1, R.Right -
-        GetScale(6), R.Bottom - 1);
+      ACanvas.Line(R.Left + GetScale(6), R.Bottom - 1, R.Right - GetScale(6), R.Bottom - 1);
   end;
 
   // Active Tab: Accent Line and "Open" Connection
@@ -2118,7 +2168,7 @@ begin
   end;
 
   // Draw Color Stripe (Accent)
-  if (Tab.Color <> clNone) then
+  if (Tab.StripeColor <> clNone) then
   begin
     DrawColorStripe(ACanvas, R, Tab);
 
@@ -2135,6 +2185,7 @@ procedure TExtTabCtrl.DrawMacOSTab(ACanvas: TCanvas; R: TRect; IsActive: Boolean
 var
   Radius: Integer;
   DrawR: TRect;
+  BaseClr: TColor;
 begin
   Radius := GetScale(6);
   DrawR := R;
@@ -2150,13 +2201,17 @@ begin
   end
   else
   begin
+    if (Tab.Color <> clNone) then
+      BaseClr := Tab.Color
+    else
+      BaseClr := Color;
+
     if Tab.Index = FHoverTab then
     begin
       // Light hover: 90% blend toward the system window color
-      ACanvas.Brush.Color := BlendColors(Color, clWindow, 0.9);
+      ACanvas.Brush.Color := BlendColors(BaseClr, clWindow, 0.9);
       ACanvas.Pen.Style := psClear;
-      ACanvas.RoundRect(DrawR.Left, DrawR.Top, DrawR.Right, DrawR.Bottom,
-        Radius, Radius);
+      ACanvas.RoundRect(DrawR.Left, DrawR.Top, DrawR.Right, DrawR.Bottom, Radius, Radius);
       ACanvas.Pen.Style := psSolid;
     end;
 
@@ -2164,14 +2219,14 @@ begin
     if (Tab.Index < FTabs.Count - 1) and (Tab.Index <> FTabIndex) and
       (Tab.Index <> FTabIndex - 1) then
     begin
-      ACanvas.Pen.Color := BlendColors(Color, clBlack, 0.05); // Barely visible line
+      ACanvas.Pen.Color := BlendColors(BaseClr, clBlack, 0.05); // Barely visible line
       ACanvas.MoveTo(R.Right - 1, R.Top + GetScale(7));
       ACanvas.LineTo(R.Right - 1, R.Bottom - GetScale(7));
     end;
   end;
 
   // Draw Color Stripe (Accent)
-  if (Tab.Color <> clNone) then
+  if (Tab.StripeColor <> clNone) then
   begin
     DrawColorStripe(ACanvas, R, Tab);
 
@@ -2396,16 +2451,20 @@ end;
 // selection does not fire user event handlers
 procedure TExtTabCtrl.SetDesignTabIndex(AValue: Integer);
 begin
-  if FTabIndex <> AValue then
+  if (AValue < 0) or (AValue >= FTabs.Count) then Exit;
+  if FTabIndex = AValue then Exit;
+
+  FTabIndex := AValue;
+  EnsureTabVisible(FTabIndex);
+
+  if Assigned(GlobalDesignHook) then
   begin
-    SetTabIndex(AValue);
-    if Assigned(GlobalDesignHook) then
-    begin
-      GlobalDesignHook.Modified(Self);
-      // Forces the Object Inspector to reload lists
-      GlobalDesignHook.RefreshPropertyValues;
-    end;
+    GlobalDesignHook.Modified(Self);
+    // Forces the Object Inspector to reload lists
+    GlobalDesignHook.RefreshPropertyValues;
   end;
+
+  Invalidate;
 end;
 
 procedure TExtTabCtrl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);

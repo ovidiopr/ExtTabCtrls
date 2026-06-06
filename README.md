@@ -1,6 +1,6 @@
 # ExtTabCtrl
 
-A custom tab control component for [Lazarus](https://www.lazarus-ide.org/) / Free Pascal, offering a richer feature set than the standard `TPageControl`.
+A custom tab control component for [Lazarus](https://www.lazarus-ide.org/) / Free Pascal, which can be used as a replacement for `TPageControl` and `TTabControl`.
 
 ---
 
@@ -73,6 +73,8 @@ end;
 | `TabOptions` | `TExtTabOptions` | Set of feature flags (see below) |
 | `Tabs` | `TExtTabs` | The collection of `TExtTab` items |
 | `Images` | `TCustomImageList` | Optional image list for tab icons |
+| `ButtonImages` | `TButtonImages` | Customizes specific `Images` list indices for navigation (Prev/Next) and Add buttons |
+| `ButtonHints` | `TButtonHints` | Customizes hints for the Add and Scroll navigation buttons |
 | `AddMenu` | `TPopupMenu` | Menu shown when the Add button is clicked |
 
 ### `TExtTabOptions` flags
@@ -86,6 +88,10 @@ end;
 | `toAllowDragReorder` | Tabs can be reordered by dragging |
 | `toRotateTabImages` | Rotate image-list images for vertical tabs |
 | `toRotateAddImage` | Rotate the Add button glyph for vertical tabs |
+| `toGetFocus` | Allows the control to receive keyboard focus via Tab or click |
+| `toShowFocusRect` | Draws a focus rectangle around the active tab text when focused |
+| `toActiveBold` | Renders the active tab's caption in a bold font |
+| `toActiveItalic` | Renders the active tab's caption in an italic font |
 
 ---
 
@@ -113,13 +119,15 @@ end;
 | Property | Type | Description |
 |---|---|---|
 | `Caption` | `TCaption` | Tab label |
-| `Color` | `TColor` | Accent stripe colour (`clNone` = no stripe) |
+| `Color` | `TColor` | Tab background color (`clNone` = default color) |
+| `StripeColor` | `TColor` | Accent stripe color (`clNone` = no stripe) |
 | `Visible` | `Boolean` | Hide/show without deleting |
 | `Hint` | `String` | Tooltip; falls back to `Caption` if empty |
 | `ImageIndex` | `Integer` | Index into the control's `Images` list |
 | `Image` | `TBitmap` | Standalone bitmap (used when no `Images` list is set) |
 | `Value` | `String` | Arbitrary string payload |
 | `Data` | `TObject` | Arbitrary object payload (not owned by the tab) |
+| `ShowCloseButton` | `Boolean` | Toggles the close button visibility specifically for this tab (`True` by default) |
 | `FontOptions` | `TExtFontOptions` | Per-tab font size and style overrides |
 
 ---
@@ -132,10 +140,10 @@ The `Data: TObject` property is a non-owning reference. The component will **nev
 
 ## License
 
-This component is released under the **GNU General Public License v2 or later (GPL-2.0-or-later)**.
+This component is released under the **GNU Lesser General Public License v2.1 or later (LGPL-2.1-or-later)**.
 
-You are free to use, study, modify, and redistribute it under the terms of the GPL. If you distribute a modified version, you must do so under the same license.
+You are free to use, study, modify, and redistribute it under the terms of the LGPL. If you distribute a modified version of this library component, you must do so under the same license.
 
-See [https://www.gnu.org/licenses/gpl-2.0.html](https://www.gnu.org/licenses/gpl-2.0.html) for the full license text.
+See [https://www.gnu.org/licenses/lgpl-2.1.html](https://www.gnu.org/licenses/lgpl-2.1.html) for the full license text.
 
-> **Note for application developers:** the GPL requires that applications linking this component also be released under a GPL-compatible license. If you need to use this component in a closed-source application, you would need to relicense it separately with the author's permission.
+> **Note for application developers:** The LGPL explicitly allows this component to be linked into commercial, proprietary, and closed-source applications without requiring the source code of your overall application to be disclosed, provided that modifications to the `ExtTabCtrl` library itself remain open source under the LGPL.
