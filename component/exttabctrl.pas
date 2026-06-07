@@ -106,6 +106,7 @@ type
     procedure SetVisible(AValue: Boolean);
     procedure SetImage(AValue: TBitmap);
     function  GetImage: TBitmap;
+    procedure SetShowCloseButton(AValue: Boolean);
     procedure Redraw(Sender: TObject);
   protected
     FBoundRect: TRect;
@@ -125,7 +126,7 @@ type
     property Image: TBitmap read GetImage write SetImage;
     property ImageIndex: Integer read FImageIndex write FImageIndex default -1;
     property Hint: String read FHint write FHint;
-    property ShowCloseButton: Boolean read FShowCloseButton write FShowCloseButton default True;
+    property ShowCloseButton: Boolean read FShowCloseButton write SetShowCloseButton default True;
   end;
 
   TExtTabs = class(TCollection)
@@ -586,6 +587,14 @@ begin
   if FImage = nil then
     FImage := TBitmap.Create;
   Result := FImage;
+end;
+
+procedure TExtTab.SetShowCloseButton(AValue: Boolean);
+begin
+  if FShowCloseButton = AValue then Exit;
+  FShowCloseButton := AValue;
+  if Assigned(FOwnerCtrl) then
+    FOwnerCtrl.InvalidateLayout;
 end;
 
 procedure TExtTab.SetImage(AValue: TBitmap);
