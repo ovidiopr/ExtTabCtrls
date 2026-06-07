@@ -229,6 +229,8 @@ type
     procedure DrawTabTextAndImage(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean);
     procedure DrawCloseButton(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean);
     procedure DrawColorStripe(ACanvas: TCanvas; const R: TRect; Tab: TExtTab);
+    procedure DrawStripLine(ACanvas: TCanvas; const View: TRect);
+    function  ResolveColor(AColor: TColor): TColor;
 
     procedure DrawTabImage(ACanvas: TCanvas; Tab: TExtTab; X, Y: Integer);
     procedure DrawRotatedText(ACanvas: TCanvas; const S: String; const R: TRect; Degrees: Integer);
@@ -1852,11 +1854,16 @@ var
 begin
   // Draw Background
   if IsActive then
-    ACanvas.Brush.Color := Color
+  begin
+    if Tab.Index = FHoverTab then
+      ACanvas.Brush.Color := BlendColors(ResolveColor(Color), clHighlight, 0.3)
+    else
+      ACanvas.Brush.Color := Color;
+  end
   else
   begin
     if (Tab.Color <> clNone) then
-      BaseClr := Tab.Color
+      BaseClr := ResolveColor(Tab.Color)
     else
       BaseClr := clBtnFace;
 
@@ -1919,7 +1926,7 @@ var
 begin
   if (Tab.Color <> clNone) then
   begin
-    BaseClr := Tab.Color;
+    BaseClr := ResolveColor(Tab.Color);
     LightClr := BlendColors(BaseClr, clWhite, 0.4);
     ShadowClr := BlendColors(BaseClr, clBlack, 0.4);
   end
@@ -1933,9 +1940,14 @@ begin
 
   // Determine and Draw Background
   if IsActive then
-    BackClr := BlendColors(BaseClr, clBlack, 0.05)
+  begin
+    if Tab.Index = FHoverTab then
+      BackClr := BlendColors(BaseClr, clHighlight, 0.15)
+    else
+      BackClr := BlendColors(BaseClr, clBlack, 0.05);
+  end
   else if Tab.Index = FHoverTab then
-    BackClr := BlendColors(BaseClr, clHighlight, 0.4)
+    BackClr := BlendColors(BaseClr, clHighlight, 0.3)
   else
     BackClr := BaseClr;
 
@@ -1992,16 +2004,21 @@ begin
 
   // Set Colors and draw background
   if IsActive then
-    ACanvas.Brush.Color := Color
+  begin
+    if Tab.Index = FHoverTab then
+      ACanvas.Brush.Color := BlendColors(ResolveColor(Color), clHighlight, 0.3)
+    else
+      ACanvas.Brush.Color := Color;
+  end
   else
   begin
     if (Tab.Color <> clNone) then
-      BaseClr := Tab.Color
+      BaseClr := ResolveColor(Tab.Color)
     else
       BaseClr := clBtnFace;
 
     if Tab.Index = FHoverTab then
-      ACanvas.Brush.Color := BlendColors(BaseClr, clHighlight, 0.8)
+      ACanvas.Brush.Color := BlendColors(BaseClr, clHighlight, 0.2)
     else
       ACanvas.Brush.Color := BaseClr;
   end;
@@ -2037,7 +2054,15 @@ begin
     end;
   end;
 
-  ACanvas.Polygon(P);
+  if IsActive then
+  begin
+    ACanvas.Brush.Style := bsSolid;
+    ACanvas.Polygon(P);
+    ACanvas.Pen.Color := clBtnShadow;
+    ACanvas.Polyline(P);
+  end
+  else
+    ACanvas.Polygon(P);
 
   // Draw Color Stripe following the narrower edge
   if (Tab.StripeColor <> clNone) then
@@ -2047,26 +2072,6 @@ begin
     ACanvas.Brush.Style := bsClear;
     ACanvas.Pen.Style := psSolid;
     ACanvas.Pen.Color := clBtnShadow;
-  end;
-
-  // Draw the Base Separator Line
-  case FTabPosition of
-    tpTop: ACanvas.Line(R.Left, R.Bottom - 1, R.Right, R.Bottom - 1);
-    tpBottom: ACanvas.Line(R.Left, R.Top, R.Right, R.Top);
-    tpLeft: ACanvas.Line(R.Right - 1, R.Top, R.Right - 1, R.Bottom);
-    tpRight: ACanvas.Line(R.Left, R.Top, R.Left, R.Bottom);
-  end;
-
-  // "Open" the Active Tab
-  if IsActive then
-  begin
-    ACanvas.Pen.Color := Color;
-    case FTabPosition of
-      tpTop: ACanvas.Line(P[0].X + 1, P[0].Y - 1, P[3].X - 1, P[3].Y - 1);
-      tpBottom: ACanvas.Line(P[0].X + 1, P[0].Y, P[3].X - 1, P[3].Y);
-      tpLeft: ACanvas.Line(P[0].X - 1, P[0].Y + 1, P[3].X - 1, P[3].Y - 1);
-      tpRight: ACanvas.Line(P[0].X, P[0].Y + 1, P[3].X, P[3].Y - 1);
-    end;
   end;
 
   DrawTabTextAndImage(ACanvas, R, Tab, IsActive);
@@ -2084,20 +2089,23 @@ begin
   // Background and hover
   if IsActive then
   begin
-    ACanvas.Brush.Color := Color;
+    if Tab.Index = FHoverTab then
+      ACanvas.Brush.Color := BlendColors(ResolveColor(Color), clHighlight, 0.2)
+    else
+      ACanvas.Brush.Color := Color;
     ACanvas.Brush.Style := bsSolid;
   end
   else
   begin
     if (Tab.Color <> clNone) then
-      BaseClr := Tab.Color
+      BaseClr := ResolveColor(Tab.Color)
     else
-      BaseClr := Color;
+      BaseClr := ResolveColor(Color);
 
     if Tab.Index = FHoverTab then
     begin
       // Light subtle hover
-      ACanvas.Brush.Color := BlendColors(BaseClr, clHighlight, 0.7);
+      ACanvas.Brush.Color := BlendColors(BaseClr, clHighlight, 0.08);
       ACanvas.Brush.Style := bsSolid;
     end
     else
@@ -2195,16 +2203,20 @@ begin
 
   if IsActive then
   begin
-    ACanvas.Brush.Color := BlendColors(Color, clWindow, 0.85);
-    ACanvas.Pen.Color := BlendColors(Color, clBtnShadow, 0.15); // subtle border
+    // Active tab always uses the component background colour as the pill base
+    if Tab.Index = FHoverTab then
+      ACanvas.Brush.Color := BlendColors(BlendColors(ResolveColor(Color), clWindow, 0.85), clHighlight, 0.2)
+    else
+      ACanvas.Brush.Color := BlendColors(ResolveColor(Color), clWindow, 0.85);
+    ACanvas.Pen.Color := BlendColors(ResolveColor(Color), clBtnShadow, 0.15);
     ACanvas.RoundRect(DrawR.Left, DrawR.Top, DrawR.Right, DrawR.Bottom, Radius, Radius);
   end
   else
   begin
     if (Tab.Color <> clNone) then
-      BaseClr := Tab.Color
+      BaseClr := ResolveColor(Tab.Color)
     else
-      BaseClr := Color;
+      BaseClr := ResolveColor(Color);
 
     if Tab.Index = FHoverTab then
     begin
@@ -2219,7 +2231,7 @@ begin
     if (Tab.Index < FTabs.Count - 1) and (Tab.Index <> FTabIndex) and
       (Tab.Index <> FTabIndex - 1) then
     begin
-      ACanvas.Pen.Color := BlendColors(Color, clBlack, 0.05); // Barely visible line
+      ACanvas.Pen.Color := BlendColors(ResolveColor(Color), clBlack, 0.05); // Barely visible line
       ACanvas.MoveTo(R.Right - 1, R.Top + GetScale(7));
       ACanvas.LineTo(R.Right - 1, R.Bottom - GetScale(7));
     end;
@@ -2237,6 +2249,76 @@ begin
   ACanvas.Font.Color := IfThen(IsActive, clWindowText, clGrayText);
   DrawTabTextAndImage(ACanvas, R, Tab, IsActive);
   DrawCloseButton(ACanvas, R, Tab, IsActive);
+end;
+
+// Resolves clDefault and other system colors before mixing
+function TExtTabCtrl.ResolveColor(AColor: TColor): TColor;
+begin
+  if AColor = clDefault then
+    Result := ColorToRGB(GetDefaultColor(dctBrush))
+  else
+    Result := ColorToRGB(AColor);
+end;
+
+// Draws the folder-tab separator line along the inner edge of the tab strip
+procedure TExtTabCtrl.DrawStripLine(ACanvas: TCanvas; const View: TRect);
+var
+  ActiveR: TRect;
+  StripY, StripX: Integer;
+begin
+  if FTabStyle = tsMacOS then Exit;
+
+  ACanvas.Pen.Color := clBtnShadow;
+  ACanvas.Pen.Width := 1;
+  ACanvas.Pen.Style := psSolid;
+
+  if (FTabIndex >= 0) and (FTabIndex < FTabs.Count) then
+  begin
+    // Compute the screen rect of the active tab
+    ActiveR := FTabs[FTabIndex].FBoundRect;
+    if IsHorizontal then
+      Types.OffsetRect(ActiveR, View.Left - FScrollOffset, View.Top)
+    else
+      Types.OffsetRect(ActiveR, View.Left, View.Top - FScrollOffset);
+
+    // Draw two segments: before and after the active tab
+    case FTabPosition of
+      tpTop:
+      begin
+        StripY := View.Bottom - 1;
+        ACanvas.Line(0, StripY, ActiveR.Left, StripY);            // left segment
+        ACanvas.Line(ActiveR.Right, StripY, ClientWidth, StripY); // right segment
+      end;
+      tpBottom:
+      begin
+        StripY := View.Top;
+        ACanvas.Line(0, StripY, ActiveR.Left, StripY);
+        ACanvas.Line(ActiveR.Right, StripY, ClientWidth, StripY);
+      end;
+      tpLeft:
+      begin
+        StripX := View.Right - 1;
+        ACanvas.Line(StripX, 0, StripX, ActiveR.Top);               // top segment
+        ACanvas.Line(StripX, ActiveR.Bottom, StripX, ClientHeight); // bottom segment
+      end;
+      tpRight:
+      begin
+        StripX := View.Left;
+        ACanvas.Line(StripX, 0, StripX, ActiveR.Top);
+        ACanvas.Line(StripX, ActiveR.Bottom, StripX, ClientHeight);
+      end;
+    end;
+  end
+  else
+  begin
+    // No active tab: draw the full unbroken line
+    case FTabPosition of
+      tpTop: ACanvas.Line(0, View.Bottom - 1, ClientWidth, View.Bottom - 1);
+      tpBottom: ACanvas.Line(0, View.Top, ClientWidth, View.Top);
+      tpLeft: ACanvas.Line(View.Right - 1, 0, View.Right - 1, ClientHeight);
+      tpRight: ACanvas.Line(View.Left, 0, View.Left, ClientHeight);
+    end;
+  end;
 end;
 
 procedure TExtTabCtrl.DrawTab(ACanvas: TCanvas; Index: Integer; ARect: TRect; IsActive: Boolean);
@@ -2367,6 +2449,12 @@ begin
       if IntersectRect(Dummy, R, View) then
         DrawTab(Canvas, i, R, i = FTabIndex);
     end;
+
+    // Draw the strip separator line across the full viewport edge
+    RestoreDC(Canvas.Handle, SaveIdx);
+    SaveIdx := SaveDC(Canvas.Handle);
+    DrawStripLine(Canvas, View);
+    IntersectClipRect(Canvas.Handle, View.Left, View.Top, View.Right, View.Bottom);
 
     // Draw drop indicator (where the tab will be inserted)
     if FDragging and (FDragTargetIndex <> -1) then
@@ -3018,7 +3106,7 @@ begin
   if Assigned(FOnTabDeleting) then
   begin
     FOnTabDeleting(Self, Index, Allow);
-    // User callback may have mutated collection — revalidate index
+    // User callback may have mutated collection: revalidate index
     if csDestroying in ComponentState then Exit;
     if (Index < 0) or (Index >= FTabs.Count) then Exit;
   end;
@@ -3053,10 +3141,10 @@ begin
     FTabs.Delete(Index);
     FTabIndex := NewIndex;
 
-    // Cancel any in-progress drag — indexes are now stale
+    // Cancel any in-progress drag: indexes are now stale
     CancelDrag;
 
-    // Reset hover state — indices may now be stale
+    // Reset hover state: indices may now be stale
     FHoverTab := -1;
     FHoverCloseTab := -1;
 
