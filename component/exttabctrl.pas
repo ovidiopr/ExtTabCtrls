@@ -3148,6 +3148,14 @@ begin
   BeginInternalChange;
   try
     FTabs.Delete(Index);
+
+    if ((toActiveBold in FTabOptions) or (toActiveItalic in FTabOptions)) and
+       (NewIndex >= 0) and (NewIndex < FTabs.Count) then
+    begin
+      FTabs[NewIndex].FTextWidth := -1;
+      FTabs[NewIndex].FTextHeight := -1;
+    end;
+
     FTabIndex := NewIndex;
 
     // Cancel any in-progress drag: indexes are now stale
