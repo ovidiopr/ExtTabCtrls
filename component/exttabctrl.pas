@@ -119,7 +119,7 @@ type
     FFontOptions: TExtFontOptions;
     FOwnerCtrl: TExtTabCtrl;
     FImage: TBitmap;
-    FImageIndex: Integer;
+    FImageIndex: TImageIndex;
     FHint: String;
     FShowCloseButton: Boolean;
     FTextWidth: Integer;
@@ -151,7 +151,7 @@ type
     property Data: TObject read FData write FData;
     property FontOptions: TExtFontOptions read FFontOptions;
     property Image: TBitmap read GetImage write SetImage;
-    property ImageIndex: Integer read FImageIndex write SetImageIndex default -1;
+    property ImageIndex: TImageIndex read FImageIndex write SetImageIndex default -1;
     property Hint: String read FHint write FHint;
     property ShowCloseButton: Boolean read FShowCloseButton write SetShowCloseButton default True;
   end;
@@ -687,7 +687,7 @@ begin
   Redraw(Self);
 end;
 
-procedure TExtTab.SetImageIndex(AValue: Integer);
+procedure TExtTab.SetImageIndex(AValue: TImageIndex);
 begin
   if FImageIndex = AValue then Exit;
   FImageIndex := AValue;
