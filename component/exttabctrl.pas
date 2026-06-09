@@ -173,6 +173,11 @@ type
 
   TExtTabCtrl = class(TCustomControl)
   private
+    type
+      TImageSize = (isz100, isz150, isz200);
+      TCustomBitmapArray = array[TImageSize] of TCustomBitmap;
+
+  private
     FUpdateCount: Integer;
     FLayoutDirty: Boolean;
     FTabSize: Integer;
@@ -182,7 +187,7 @@ type
     FTabStyle: TTabStyle;
     FTabOptions: TExtTabOptions;
     FBtnAdd: TSpeedButton;
-    FAddImage, FCloseImage: TBitmap;
+    FAddImage, FCloseImage: TCustomBitmap;
 
     FImages: TCustomImageList;
     FButtonImages: TButtonImages;
@@ -211,10 +216,10 @@ type
     FScrollOffset: Integer;
     FHoverTab, FHoverCloseTab: Integer;
     FBtnScrollPrev, FBtnScrollNext: TSpeedButton;
-    FScrollImages: array[0..1] of TBitmap;
+    FScrollImages: array[0..1] of TCustomBitmap;
 
-    FCachedAddGlyph: TBitmap;
-    FCachedScrollGlyphs: array[0..1] of TBitmap;
+    FCachedAddGlyph: TCustomBitmap;
+    FCachedScrollGlyphs: array[0..1] of TCustomBitmap;
     FLastRotation: Integer;
     FAddTabCounter: Integer;
     FImportActive: Boolean;
@@ -255,6 +260,7 @@ type
     function CloseButtonRect(Tab: TExtTab): TRect;
     function TabAtPos(X, Y: Integer): Integer;
     procedure LoadBitmapFromLRS(const ResName: String; DestBitmap: TBitmap);
+    procedure LoadBitmapFromRes(const ResName: String; DestImg: TCustomBitmap);
     function MaxScrollOffset: Integer;
     procedure EnsureTabVisible(Index: Integer);
     procedure UpdateScrollButtons;
@@ -313,6 +319,10 @@ type
     procedure CalculatePreferredSize(var PreferredWidth, PreferredHeight: Integer; WithImplicitConstraints: Boolean); override;
     procedure CMShowHintChanged(var Message: TLMessage); message CM_SHOWHINTCHANGED;
     procedure CMFontChanged(var Message: TLMessage); message CM_FONTCHANGED;
+
+    procedure DoAutoAdjustLayout(const AMode: TLayoutAdjustmentPolicy;
+      const AXProportion, AYProportion: Double); override;
+    procedure UpdateImages;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -394,6 +404,8 @@ procedure Register;
 
 implementation
 
+{$R exttabctrl_images.res}
+
 { Global Helpers }
 procedure SwapIntegers(var A, B: Integer);
 var
@@ -421,7 +433,7 @@ begin
                 Round(B1*(1 - Ratio) + B2*Ratio));
 end;
 
-procedure RotateBitmap(Source, Dest: TBitmap; Degrees: Integer);
+procedure RotateBitmap(Source, Dest: TCustomBitmap; Degrees: Integer);
 var
   SrcIntf, DestIntf: TLazIntfImage;
   x, y: Integer;
@@ -457,6 +469,17 @@ begin
     SrcIntf.Free;
     DestIntf.Free;
   end;
+end;
+
+function GetScalePercent: Integer;
+begin
+  if ScreenInfo.PixelsPerInchX <= 120 then
+    Result := 100 // 100-125% (96-120 DPI): no scaling
+  else
+  if ScreenInfo.PixelsPerInchX <= 168 then
+    Result := 150 // 126%-175% (144-168 DPI): 150% scaling
+  else
+    Result := Round(ScreenInfo.PixelsPerInchX/96) * 100; // 200, 300, 400, ...
 end;
 
 { TButtonImages }
@@ -1227,29 +1250,29 @@ begin
     if FButtonImages.PrevIndex >= 0 then
       FImages.ResolutionForPPI[FImagesWidth.PrevWidth, PPI, Scale].GetBitmap(FButtonImages.PrevIndex, FScrollImages[0])
     else
-      LoadBitmapFromLRS('tab_prev', FScrollImages[0]);
+      LoadBitmapFromRes('tab_prev', FScrollImages[0]);
 
     if FButtonImages.NextIndex >= 0 then
       FImages.ResolutionForPPI[FImagesWidth.NextWidth, PPI, Scale].GetBitmap(FButtonImages.NextIndex, FScrollImages[1])
     else
-      LoadBitmapFromLRS('tab_next', FScrollImages[1]);
+      LoadBitmapFromRes('tab_next', FScrollImages[1]);
 
     if FButtonImages.AddIndex >= 0 then
       FImages.ResolutionForPPI[FImagesWidth.AddWidth, PPI, Scale].GetBitmap(FButtonImages.AddIndex, FAddImage)
     else
-      LoadBitmapFromLRS('tab_new', FAddImage);
+      LoadBitmapFromRes('tab_new', FAddImage);
 
     if FButtonImages.CloseIndex >= 0 then
       FImages.ResolutionForPPI[FImagesWidth.CloseWidth, PPI, Scale].GetBitmap(FButtonImages.CloseIndex, FCloseImage)
     else
-      LoadBitmapFromLRS('cross', FCloseImage);
+      LoadBitmapFromRes('cross', FCloseImage);
   end
   else
   begin
-    LoadBitmapFromLRS('tab_new', FAddImage);
-    LoadBitmapFromLRS('cross', FCloseImage);
-    LoadBitmapFromLRS('tab_prev', FScrollImages[0]);
-    LoadBitmapFromLRS('tab_next', FScrollImages[1]);
+    LoadBitmapFromRes('tab_new', FAddImage);
+    LoadBitmapFromRes('cross', FCloseImage);
+    LoadBitmapFromRes('tab_prev', FScrollImages[0]);
+    LoadBitmapFromRes('tab_next', FScrollImages[1]);
   end;
 
   ClearGlyphCache;
@@ -1604,6 +1627,16 @@ begin
     P := Point(X - V.Left, Y - V.Top + FScrollOffset);
   for i := 0 to FTabs.Count - 1 do
     if PtInRect(FTabs[i].FBoundRect, P) then Exit(i);
+end;
+
+procedure TExtTabCtrl.LoadBitmapFromRes(const ResName: String; DestImg: TCustomBitmap);
+begin
+  Assert(DestImg <> nil, 'DestImg cannot be nil in LoadBitmapFromRes');
+  case GetScalePercent of
+    100: DestImg.LoadFromResourceName(HInstance, ResName);
+    150: DestImg.LoadFromResourceName(HInstance, ResName + '_150');
+    else DestImg.LoadFromResourceName(HInstance, ResName + '_200');
+  end;
 end;
 
 procedure TExtTabCtrl.LoadBitmapFromLRS(const ResName: String; DestBitmap: TBitmap);
@@ -3223,10 +3256,15 @@ begin
 end;
 
 procedure TExtTabCtrl.CMFontChanged(var Message: TLMessage);
+begin
+  inherited;
+  UpdateImages;
+end;
+
+procedure TExtTabCtrl.UpdateImages;
 var
   i: Integer;
 begin
-  inherited;
   // Invalidate all cached text metrics, the new font makes them stale
   for i := 0 to FTabs.Count - 1 do
   begin
@@ -3242,6 +3280,14 @@ begin
     ButtonImagesChanged(Self);
 
   InvalidateLayout;
+end;
+
+procedure TExtTabCtrl.DoAutoAdjustLayout(const AMode: TLayoutAdjustmentPolicy;
+  const AXProportion, AYProportion: Double);
+begin
+  inherited;
+  if AMode in [lapAutoAdjustWithoutHorizontalScrolling, lapAutoAdjustForDPI] then
+    UpdateImages;
 end;
 
 procedure TExtTabCtrl.BeginUpdate;
@@ -3455,15 +3501,15 @@ begin
                   toCloseOnMiddleClick, toAllowDragReorder, toGetFocus,
                   toShowFocusRect];
 
-  FAddImage := TBitmap.Create;
-  FCloseImage := TBitmap.Create;
-  FScrollImages[0] := TBitmap.Create;
-  FScrollImages[1] := TBitmap.Create;
+  FAddImage := TPortableNetworkGraphic.Create;
+  FCloseImage := TPortableNetworkGraphic.Create;
+  FScrollImages[0] := TPortableNetworkGraphic.Create;
+  FScrollImages[1] := TPortableNetworkGraphic.Create;
 
-  LoadBitmapFromLRS('tab_new', FAddImage);
-  LoadBitmapFromLRS('cross', FCloseImage);
-  LoadBitmapFromLRS('tab_prev', FScrollImages[0]);
-  LoadBitmapFromLRS('tab_next', FScrollImages[1]);
+  LoadBitmapFromRes('tab_new', FAddImage);
+  LoadBitmapFromRes('cross', FCloseImage);
+  LoadBitmapFromRes('tab_prev', FScrollImages[0]);
+  LoadBitmapFromRes('tab_next', FScrollImages[1]);
 
   FButtonImages := TButtonImages.Create(Self);
   FButtonImages.OnChange := @ButtonImagesChanged;
@@ -3494,9 +3540,9 @@ begin
   FBtnScrollNext.ShowHint := ShowHint;
   FBtnScrollNext.OnClick := @ScrollNext;
 
-  FCachedAddGlyph := TBitmap.Create;
-  FCachedScrollGlyphs[0] := TBitmap.Create;
-  FCachedScrollGlyphs[1] := TBitmap.Create;
+  FCachedAddGlyph := TCustomBitmapClass(FAddImage.ClassType).Create;
+  FCachedScrollGlyphs[0] := TCustomBitmapClass(FScrollImages[0].ClassType).Create;
+  FCachedScrollGlyphs[1] := TCustomBitmapClass(FScrollImages[1].ClassType).Create;
   FLastRotation := -1;
 
   FMouseDownIndex := -1;
@@ -3713,7 +3759,8 @@ begin
   if Assigned(TC) then
     Result := TC.Images;
 end;
-
+    (*
 initialization
   {$I ExtTabCtrl.lrs}
+  *)
 end.
