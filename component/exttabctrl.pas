@@ -131,7 +131,7 @@ type
     procedure SetStripeColor(AValue: TColor);
     procedure SetVisible(AValue: Boolean);
     procedure SetImage(AValue: TBitmap);
-    procedure SetImageIndex(AValue: Integer);
+    procedure SetImageIndex(AValue: TImageIndex);
     function  GetImage: TBitmap;
     procedure SetShowCloseButton(AValue: Boolean);
     procedure Redraw(Sender: TObject);
