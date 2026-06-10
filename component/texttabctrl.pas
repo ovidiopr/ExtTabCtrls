@@ -8,13 +8,13 @@ unit TExtTabCtrl;
 interface
 
 uses
-  ExtTabCtrl, LazarusPackageIntf;
+  ExtTabCtrlReg, LazarusPackageIntf;
 
 implementation
 
 procedure Register;
 begin
-  RegisterUnit('ExtTabCtrl', @ExtTabCtrl.Register);
+  RegisterUnit('ExtTabCtrlReg', @ExtTabCtrlReg.Register);
 end;
 
 initialization

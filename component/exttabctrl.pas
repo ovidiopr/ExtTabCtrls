@@ -7,7 +7,7 @@ interface
 uses
   Classes, SysUtils, Controls, Graphics, Buttons, LCLType, Types, Math,
   LResources, LCLIntf, GraphUtil, ImgList, LMessages, Forms, Menus,
-  ComponentEditors, PropEdits, IntfGraphics, GraphPropEdits;
+  IntfGraphics{$IFDEF LCLDesign}, PropEdits{$ENDIF};
 
 type
   TTabPosition = (tpTop, tpBottom, tpLeft, tpRight);
@@ -50,6 +50,8 @@ type
     procedure Assign(Source: TPersistent); override;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
   published
+    function GetOwner: TExtTabCtrl;
+
     property PrevIndex: TImageIndex index 0 read FPrevIndex write SetIndex default -1;
     property NextIndex: TImageIndex index 1 read FNextIndex write SetIndex default -1;
     property AddIndex: TImageIndex index 2 read FAddIndex write SetIndex default -1;
@@ -143,6 +145,9 @@ type
   public
     constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
+
+    function GetOwner: TExtTabCtrl;
+
     property BoundRect: TRect read FBoundRect;
   published
     property Caption: TCaption read FCaption write SetCaption;
@@ -252,8 +257,6 @@ type
     procedure ImagesWidthChanged(Sender: TObject);
     function TabsViewportRect: TRect;
     procedure AnchorButtons;
-    function IsVertical: Boolean;
-    function IsHorizontal: Boolean;
     function CloseButtonRect(Tab: TExtTab): TRect;
     function TabAtPos(X, Y: Integer): Integer;
     procedure LoadBitmapFromLRS(const ResName: String; DestBitmap: TBitmap);
@@ -320,6 +323,8 @@ type
     destructor Destroy; override;
     procedure BeginUpdate;
     procedure EndUpdate;
+    function IsVertical: Boolean;
+    function IsHorizontal: Boolean;
     procedure InvalidateLayout;
     function NextVisibleTab(FromIndex: Integer): Integer;
     function PrevVisibleTab(FromIndex: Integer): Integer;
@@ -371,30 +376,6 @@ type
     property OnLostFocus: TNotifyEvent read FOnLostFocus write FOnLostFocus;
   end;
 
-  TExtTabCtrlEditor = class(TComponentEditor)
-  public
-    function GetVerbCount: Integer; override;
-    function GetVerb(Index: Integer): String; override;
-    procedure ExecuteVerb(Index: Integer); override;
-  end;
-
-  // Property editor for TabIndex that also notifies the control to repaint
-  // when the value is changed from the Object Inspector/component
-  // tree, so the selected tab is visible at design time
-  TTabIndexPropertyEditor = class(TIntegerPropertyEditor)
-  public
-    function GetAttributes: TPropertyAttributes; override;
-    function GetValue: String; override;
-    procedure GetValues(Proc: TGetStrProc); override;
-    procedure SetValue(const NewValue: String); override;
-  end;
-
-  TExtTabCtrlImageIndexProperty = class(TImageIndexPropertyEditor)
-  protected
-    function GetImageList: TCustomImageList; override;
-  end;
-
-procedure Register;
 
 implementation
 
@@ -505,6 +486,11 @@ begin
     Ptr^ := Value;
     if Assigned(FOnChange) then FOnChange(Self);
   end;
+end;
+
+function TButtonImages.GetOwner: TExtTabCtrl;
+begin
+  Result := FOwnerCtrl;
 end;
 
 { TButtonHints }
@@ -755,6 +741,11 @@ begin
   inherited Destroy;
 end;
 
+function TExtTab.GetOwner: TExtTabCtrl;
+begin
+  Result := FOwnerCtrl;
+end;
+
 { TExtTabs }
 function TExtTabs.GetItems(Index: Integer): TExtTab;
 begin
@@ -770,11 +761,13 @@ begin
     FOwnerCtrl.InvalidateLayout;
 
     // Notify the IDE that the internal structure changed so it updates the Object Inspector
+    {$IFDEF LCLDesign}
     if (csDesigning in FOwnerCtrl.ComponentState) and Assigned(GlobalDesignHook) then
     begin
       GlobalDesignHook.Modified(FOwnerCtrl);
       GlobalDesignHook.RefreshPropertyValues;
     end;
+    {$ENDIF}
   end;
 end;
 
@@ -2796,12 +2789,14 @@ begin
   FTabIndex := AValue;
   EnsureTabVisible(FTabIndex);
 
+  {$IFDEF LCLDesign}
   if Assigned(GlobalDesignHook) then
   begin
     GlobalDesignHook.Modified(Self);
     // Forces the Object Inspector to reload lists
     GlobalDesignHook.RefreshPropertyValues;
   end;
+  {$ENDIF}
 
   Invalidate;
 end;
@@ -3140,11 +3135,15 @@ begin
   Idx := TabAtPos(X, Y);
   if Idx <> -1 then
   begin
+    {$IFDEF LCLDesign}
     if Assigned(GlobalDesignHook) then
       GlobalDesignHook.SelectOnlyThis(Self);
+    {$ENDIF}
     SetDesignTabIndex(Idx);
+    {$IFDEF LCLDesign}
     if Assigned(GlobalDesignHook) then
       GlobalDesignHook.SelectOnlyThis(Tabs[Idx]);
+    {$ENDIF}
   end;
 end;
 
@@ -3570,183 +3569,6 @@ begin
   FreeAndNil(FTabs);
 
   inherited Destroy;
-end;
-
-{ TExtTabCtrlEditor }
-procedure TExtTabCtrlEditor.ExecuteVerb(Index: Integer);
-var
-  TabControl: TExtTabCtrl;
-  TargetIndex: Integer;
-  CurrentTab, NewTab: TExtTab;
-
-procedure RebuildDesignerTabTree(Ctrl: TExtTabCtrl; OldIdx, NewIdx: Integer);
-  begin
-    // Move the tab in the collection
-    Ctrl.Tabs[OldIdx].Index := NewIdx;
-    Ctrl.TabIndex := NewIdx;
-
-    // Notify the designer. The component tree does not reorder existing
-    // nodes in Lazarus, but the control renders correctly and the Object
-    // Inspector reflects the right state. Attempting to delete+readd nodes
-    // causes "list index out of bounds" because DeletePersistent frees the
-    // collection items while the loop is still running.
-    Designer.Modified;
-    if Assigned(GlobalDesignHook) then
-    begin
-      GlobalDesignHook.RefreshPropertyValues;
-      GlobalDesignHook.SelectOnlyThis(Ctrl.Tabs[NewIdx]);
-    end;
-  end;
-begin
-  TabControl := TExtTabCtrl(Component);
-  TargetIndex := TabControl.TabIndex;
-
-  case Index of
-    0: begin // Add Tab
-      NewTab := TabControl.AddTab('New Tab ' + IntToStr(TabControl.Tabs.Count + 1));
-      Designer.Modified;
-      if Assigned(NewTab) and Assigned(GlobalDesignHook) then
-      begin
-        GlobalDesignHook.PersistentAdded(NewTab, True);
-        Exit;
-      end;
-    end;
-
-    1: begin // Delete Tab
-      if (TargetIndex >= 0) and (TargetIndex < TabControl.Tabs.Count) then
-      begin
-        CurrentTab := TabControl.Tabs[TargetIndex];
-        // DeletePersistent removes the node; DeleteTab is not needed
-        if Assigned(GlobalDesignHook) then
-          GlobalDesignHook.DeletePersistent(TPersistent(CurrentTab));
-        //TabControl.DeleteTab(TargetIndex);
-      end;
-    end;
-
-    2: begin // Move Left / Move Up
-      if TargetIndex > 0 then
-      begin
-        RebuildDesignerTabTree(TabControl, TargetIndex, TargetIndex - 1);
-        Exit;
-      end;
-    end;
-
-    3: begin // Move Right / Move Down
-      if (TargetIndex >= 0) and (TargetIndex < TabControl.Tabs.Count - 1) then
-      begin
-        RebuildDesignerTabTree(TabControl, TargetIndex, TargetIndex + 1);
-        Exit;
-      end;
-    end;
-  end;
-
-  Designer.Modified;
-  Designer.SelectOnlyThisComponent(TabControl);
-end;
-
-function TExtTabCtrlEditor.GetVerb(Index: Integer): String;
-var
-  TabControl: TExtTabCtrl;
-begin
-  TabControl := TExtTabCtrl(Component);
-
-  case Index of
-    0: Result := 'Add Tab';
-    1: Result := 'Delete Tab';
-    2: if TabControl.IsHorizontal then
-         Result := 'Move Left'
-       else
-         Result := 'Move Up';
-    3: if TabControl.IsHorizontal then
-         Result := 'Move Right'
-       else
-         Result := 'Move Down';
-    else
-      Result := '';
-  end;
-end;
-
-function TExtTabCtrlEditor.GetVerbCount: Integer;
-begin
-  Result := 4;
-end;
-
-procedure Register;
-begin
-  RegisterComponents('Common Controls', [TExtTabCtrl]);
-  RegisterComponentEditor(TExtTabCtrl, TExtTabCtrlEditor);
-
-  // Register the custom property editor so that changing TabIndex in the
-  // Object Inspector immediately updates the visible tab at design time
-  RegisterPropertyEditor(TypeInfo(Integer), TExtTabCtrl, 'TabIndex', TTabIndexPropertyEditor);
-
-  // Register visual dropdowns for the ImageIndex properties on Tabs and Buttons
-  RegisterPropertyEditor(TypeInfo(TImageIndex), TExtTab, 'ImageIndex', TExtTabCtrlImageIndexProperty);
-  RegisterPropertyEditor(TypeInfo(TImageIndex), TButtonImages, '', TExtTabCtrlImageIndexProperty);
-end;
-
-{ TTabIndexPropertyEditor }
-procedure TTabIndexPropertyEditor.GetValues(Proc: TGetStrProc);
-var
-  Ctrl: TExtTabCtrl;
-  i: Integer;
-begin
-  Ctrl := GetComponent(0) as TExtTabCtrl;
-  if not Assigned(Ctrl) then Exit;
-  for i := 0 to Ctrl.Tabs.Count - 1 do
-    Proc(IntToStr(i) + ' - ' + Ctrl.Tabs[i].Caption);
-end;
-
-function TTabIndexPropertyEditor.GetAttributes: TPropertyAttributes;
-begin
-  Result := [paValueList, paRevertable];
-end;
-
-function TTabIndexPropertyEditor.GetValue: String;
-var
-  Ctrl: TExtTabCtrl;
-begin
-  Ctrl := GetComponent(0) as TExtTabCtrl;
-  if Assigned(Ctrl) and (Ctrl.TabIndex >= 0) and (Ctrl.TabIndex < Ctrl.Tabs.Count) then
-    Result := IntToStr(Ctrl.TabIndex) + ' - ' + Ctrl.Tabs[Ctrl.TabIndex].Caption
-  else
-    Result := IntToStr(GetOrdValue);
-end;
-
-procedure TTabIndexPropertyEditor.SetValue(const NewValue: String);
-var
-  Ctrl: TExtTabCtrl;
-  Idx: Integer;
-  S: String;
-begin
-  Ctrl := GetComponent(0) as TExtTabCtrl;
-  if not Assigned(Ctrl) then Exit;
-  // Accept either a plain integer ("2") or the "2 - Caption" format
-  S := Trim(NewValue);
-  if Pos(' ', S) > 0 then
-    S := Copy(S, 1, Pos(' ', S) - 1);
-  Idx := StrToIntDef(S, -1);
-  Ctrl.SetDesignTabIndex(Idx);
-end;
-
-{ TExtTabCtrlImageIndexProperty }
-function TExtTabCtrlImageIndexProperty.GetImageList: TCustomImageList;
-var
-  P: TPersistent;
-  TC: TExtTabCtrl;
-begin
-  Result := nil;
-  P := GetComponent(0);
-
-  if P is TExtTab then
-    TC := TExtTab(P).FOwnerCtrl
-  else if P is TButtonImages then
-    TC := TButtonImages(P).FOwnerCtrl
-  else
-    Exit;
-
-  if Assigned(TC) then
-    Result := TC.Images;
 end;
 
 initialization
