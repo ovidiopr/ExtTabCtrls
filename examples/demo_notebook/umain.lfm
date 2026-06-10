@@ -81,7 +81,7 @@ object Form1: TForm1
       object PgInfo: TPage
         object ValueListEditor1: TValueListEditor
           Left = 0
-          Height = 388
+          Height = 362
           Top = 0
           Width = 593
           Align = alClient
@@ -91,7 +91,7 @@ object Form1: TForm1
           Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goColSizing, goAlwaysShowEditor, goThumbTracking]
           ColWidths = (
             150
-            443
+            441
           )
         end
       end
@@ -100,16 +100,16 @@ object Form1: TForm1
           AnchorSideTop.Control = CmbTabStyle
           AnchorSideTop.Side = asrCenter
           Left = 8
-          Height = 15
-          Top = 18
-          Width = 46
+          Height = 16
+          Top = 15
+          Width = 54
           Caption = 'Tab style'
         end
         object CmbTabStyle: TComboBox
           Left = 74
-          Height = 23
+          Height = 19
           Top = 14
-          Width = 182
+          Width = 81
           ItemHeight = 15
           Items.Strings = (
             'Flat'
@@ -124,27 +124,27 @@ object Form1: TForm1
         end
         object cbShowAddButton: TCheckBox
           Left = 13
-          Height = 19
+          Height = 18
           Top = 48
-          Width = 141
+          Width = 156
           Caption = 'Show "Add tab" button'
           TabOrder = 1
           OnChange = cbShowAddButtonChange
         end
         object cbShowCloseButtons: TCheckBox
           Left = 13
-          Height = 19
+          Height = 18
           Top = 72
-          Width = 133
-          Caption = 'Show "Close" buttons'
+          Width = 273
+          Caption = 'Show "Close" buttons on user-created tabs'
           TabOrder = 2
           OnChange = cbShowCloseButtonsChange
         end
         object cbShowTabStripes: TCheckBox
           Left = 13
-          Height = 19
+          Height = 18
           Top = 96
-          Width = 104
+          Width = 121
           Caption = 'Show tab stripes'
           TabOrder = 3
           OnChange = cbShowTabStripesChange
