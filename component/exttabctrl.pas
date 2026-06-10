@@ -1321,13 +1321,18 @@ var
 begin
   if (csDestroying in ComponentState) or not HandleAllocated then Exit;
 
+  // Populate the cache first so the size variables below reflect the
+  // already-rotated glyphs that will actually be drawn, not the raw
+  // source bitmaps
+  RefreshGlyphCache;
+
   ScaledTabSize := GetScale(FTabSize);
-  ScrollPrevW := FScrollImages[0].Width;
-  ScrollPrevH := FScrollImages[0].Height;
-  ScrollNextW := FScrollImages[1].Width;
-  ScrollNextH := FScrollImages[1].Height;
-  AddW := FAddImage.Width;
-  AddH := FAddImage.Height;
+  ScrollPrevW := FCachedScrollGlyphs[0].Width;
+  ScrollPrevH := FCachedScrollGlyphs[0].Height;
+  ScrollNextW := FCachedScrollGlyphs[1].Width;
+  ScrollNextH := FCachedScrollGlyphs[1].Height;
+  AddW := FCachedAddGlyph.Width;
+  AddH := FCachedAddGlyph.Height;
 
   // If any glyph is larger than the current tab strip, expand it to fit
   if IsHorizontal then
@@ -1359,11 +1364,7 @@ begin
 
   if IsHorizontal then
   begin
-    if (toRotateAddImage in FTabOptions) and (GetRotationForPosition <> 0) then
-      SwapIntegers(AddW, AddH);
-
-    // Shared vertical anchor: tpTop --> akTop, tpBottom --> akBottom
-    // Scroll-Prev: left edge, correct vertical strip
+    // Scroll-Prev: left edge, full strip height
     if (FTabPosition = tpTop) then
       FBtnScrollPrev.Anchors := [akLeft, akTop]
     else
@@ -1383,7 +1384,7 @@ begin
       FBtnScrollPrev.SetBounds(0, ClientHeight - ScaledTabSize, ScrollPrevW, ScaledTabSize);
     end;
 
-    // Add: right edge, correct vertical strip
+    // Add: right edge, full strip height
     if (FTabPosition = tpTop) then
       FBtnAdd.Anchors := [akRight, akTop]
     else
@@ -1406,9 +1407,7 @@ begin
     end;
     FBtnAdd.SetBounds(AddLeft, AddTop, AddW, ScaledTabSize);
 
-    // Scroll-Next: right of centre, just left of Add.
-    // Anchor its right side to FBtnAdd's left (runtime) or to the calculated
-    // position (design time, where FBtnAdd.Visible = False and its Left is stale).
+    // Scroll-Next: just left of Add, full strip height
     if (FTabPosition = tpTop) then
       FBtnScrollNext.Anchors := [akRight, akTop]
     else
@@ -1442,11 +1441,7 @@ begin
   end
   else
   begin
-    if (toRotateAddImage in FTabOptions) and (GetRotationForPosition <> 0) then
-      SwapIntegers(AddW, AddH);
-
-    // Shared horizontal anchor: tpLeft --> akLeft, tpRight --> akRight
-    // Scroll-Prev: top of the strip
+    // Scroll-Prev: top of the strip, full strip width
     if (FTabPosition = tpLeft) then
       FBtnScrollPrev.Anchors := [akLeft, akTop]
     else
@@ -1466,7 +1461,7 @@ begin
       FBtnScrollPrev.SetBounds(ClientWidth - ScaledTabSize, 0, ScaledTabSize, ScrollPrevH);
     end;
 
-    // Add: bottom of the strip
+    // Add: bottom of the strip, full strip width
     if (FTabPosition = tpLeft) then
       FBtnAdd.Anchors := [akLeft, akBottom]
     else
@@ -1489,7 +1484,7 @@ begin
     end;
     FBtnAdd.SetBounds(AddLeft, AddTop, ScaledTabSize, AddH);
 
-    // Scroll-Next: just above Add
+    // Scroll-Next: just above Add, full strip width
     if (FTabPosition = tpLeft) then
       FBtnScrollNext.Anchors := [akLeft, akBottom]
     else
@@ -1521,7 +1516,6 @@ begin
     end;
   end;
 
-  RefreshGlyphCache;
   FBtnScrollPrev.Glyph.Assign(FCachedScrollGlyphs[0]);
   FBtnScrollNext.Glyph.Assign(FCachedScrollGlyphs[1]);
   FBtnAdd.Glyph.Assign(FCachedAddGlyph);
