@@ -41,6 +41,7 @@ type
   TTabClickEvent = procedure(Sender: TObject; Index: Integer) of object;
   TTabImportEvent = procedure(Sender: TObject; Tab: TExtTab; AObject: TObject) of object;
   TButtonClickEvent = procedure(Sender: TObject) of object;
+  TTabMouseEvent = procedure(Sender: TObject; Index: Integer) of object;
 
   TExtTabCtrl = class;
 
@@ -229,6 +230,8 @@ type
     FOnAddButtonClick: TButtonClickEvent;
     FOnGetFocus: TNotifyEvent;
     FOnLostFocus: TNotifyEvent;
+    FOnMouseEnterTab: TTabMouseEvent;
+    FOnMouseLeaveTab: TTabMouseEvent;
 
     FScrollOffset: Integer;
     FHoverTab, FHoverCloseTab: Integer;
@@ -406,6 +409,8 @@ type
     property OnAddButtonClick: TButtonClickEvent read FOnAddButtonClick write FOnAddButtonClick;
     property OnGetFocus: TNotifyEvent read FOnGetFocus write FOnGetFocus;
     property OnLostFocus: TNotifyEvent read FOnLostFocus write FOnLostFocus;
+    property OnMouseEnterTab: TTabMouseEvent read FOnMouseEnterTab write FOnMouseEnterTab;
+    property OnMouseLeaveTab: TTabMouseEvent read FOnMouseLeaveTab write FOnMouseLeaveTab;
   end;
 
 function IsDarkMode: Boolean;
@@ -3189,6 +3194,14 @@ begin
     // Update hover state and dynamic hint
     if FHoverTab <> NT then
     begin
+      // Mouse left the old tab
+      if (FHoverTab <> -1) and Assigned(FOnMouseLeaveTab) then
+        FOnMouseLeaveTab(Self, FHoverTab);
+
+      // Mouse entered the new tab
+      if (NT <> -1) and Assigned(FOnMouseEnterTab) then
+        FOnMouseEnterTab(Self, NT);
+
       FHoverTab := NT;
 
       if ShowHint then
@@ -3367,6 +3380,9 @@ end;
 
 procedure TExtTabCtrl.MouseLeave;
 begin
+  if (FHoverTab <> -1) and Assigned(FOnMouseLeaveTab) then
+    FOnMouseLeaveTab(Self, FHoverTab);
+
   FHoverTab := -1;
   FHoverCloseTab := -1;
   Invalidate;
