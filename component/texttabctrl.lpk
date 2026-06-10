@@ -11,6 +11,12 @@
       <SearchPaths>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
+      <Other>
+        <CustomOptions Value="-dLCLDesign"/>
+        <OtherDefines Count="1">
+          <Define0 Value="LCLDesign"/>
+        </OtherDefines>
+      </Other>
     </CompilerOptions>
     <Description Value="A feature-rich custom tab control for Lazarus including Chrome, MacOS, and Delphi styles with drag-reordering and vertical orientation support."/>
     <License Value="This component is released under the GNU General Public License v2 or later (GPL-2.0-or-later).
@@ -21,9 +27,9 @@ See https://www.gnu.org/licenses/gpl-2.0.html for the full license text."/>
     <Version Major="1" Minor="2"/>
     <Files>
       <Item>
-        <Filename Value="exttabctrl.pas"/>
+        <Filename Value="exttabctrlreg.pas"/>
         <HasRegisterProc Value="True"/>
-        <UnitName Value="ExtTabCtrl"/>
+        <UnitName Value="ExtTabCtrlReg"/>
       </Item>
     </Files>
     <RequiredPkgs>
