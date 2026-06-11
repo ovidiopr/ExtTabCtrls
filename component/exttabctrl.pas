@@ -241,6 +241,8 @@ type
     FAddTabCounter: Integer;
     FImportActive: Boolean;
     FInternalChange: Integer;
+    FMinCaptionLen: Integer;
+    FMaxCaptionLen: Integer;
 
     procedure BeginInternalChange;
     procedure EndInternalChange;
@@ -265,6 +267,8 @@ type
     procedure SetButtonHints(AValue: TButtonHints);
     procedure SetImagesWidth(AValue: TImagesWidth);
     procedure SetTabs(AValue: TExtTabs);
+    procedure SetMinCaptionLen(AValue: Integer);
+    procedure SetMaxCaptionLen(AValue: Integer);
 
     procedure SetAddMenu(AValue: TPopupMenu);
     function GetAddMenu: TPopupMenu;
@@ -273,6 +277,7 @@ type
     procedure ImagesWidthChanged(Sender: TObject);
     function TabsViewportRect: TRect;
     procedure AnchorButtons;
+    function GetDisplayCaption(Tab: TExtTab): String;
     function CloseButtonRect(Tab: TExtTab): TRect;
     function TabAtPos(X, Y: Integer): Integer;
     procedure LoadBitmapFromLRS(const ResName: String; DestBitmap: TBitmap);
@@ -394,6 +399,9 @@ type
     property ButtonHints: TButtonHints read FButtonHints write SetButtonHints;
 
     property AddMenu: TPopupMenu read GetAddMenu write SetAddMenu;
+
+    property MinCaptionLen: Integer read FMinCaptionLen write SetMinCaptionLen default 5;
+    property MaxCaptionLen: Integer read FMaxCaptionLen write SetMaxCaptionLen default 25;
 
     property OnTabReordering: TTabReorderingEvent read FOnTabReordering write FOnTabReordering;
     property OnTabReordered: TTabReorderedEvent read FOnTabReordered write FOnTabReordered;
@@ -1362,6 +1370,37 @@ begin
   FImagesWidth.Assign(AValue);
 end;
 
+procedure TExtTabCtrl.SetMinCaptionLen(AValue: Integer);
+var
+  i: Integer;
+begin
+  if AValue < 0 then AValue := 0;
+  if FMinCaptionLen = AValue then Exit;
+  FMinCaptionLen := AValue;
+  // Display text may change length — bust all text-width caches
+  for i := 0 to FTabs.Count - 1 do
+  begin
+    FTabs[i].FTextWidth  := -1;
+    FTabs[i].FTextHeight := -1;
+  end;
+  InvalidateLayout;
+end;
+
+procedure TExtTabCtrl.SetMaxCaptionLen(AValue: Integer);
+var
+  i: Integer;
+begin
+  if AValue < 0 then AValue := 0;
+  if FMaxCaptionLen = AValue then Exit;
+  FMaxCaptionLen := AValue;
+  for i := 0 to FTabs.Count - 1 do
+  begin
+    FTabs[i].FTextWidth  := -1;
+    FTabs[i].FTextHeight := -1;
+  end;
+  InvalidateLayout;
+end;
+
 procedure TExtTabCtrl.SetButtonHints(AValue: TButtonHints);
 begin
   FButtonHints.Assign(AValue);
@@ -1985,9 +2024,10 @@ begin
   end;
 
   if IsHorizontal then
-    DrawText(ACanvas.Handle, PChar(Tab.Caption), -1, TextRect, DT_LEFT or DT_VCENTER or DT_SINGLELINE or DT_NOPREFIX)
+    DrawText(ACanvas.Handle, PChar(GetDisplayCaption(Tab)), -1, TextRect,
+             DT_LEFT or DT_VCENTER or DT_SINGLELINE or DT_NOPREFIX)
   else
-    DrawRotatedText(ACanvas, Tab.Caption, TextRect, GetRotationForPosition);
+    DrawRotatedText(ACanvas, GetDisplayCaption(Tab), TextRect, GetRotationForPosition);
 end;
 
 procedure TExtTabCtrl.DrawTabImage(ACanvas: TCanvas; Tab: TExtTab; X, Y: Integer);
@@ -2119,7 +2159,7 @@ begin
     TextSize.cy := Tab.FTextHeight;
   end
   else
-    TextSize := ACanvas.TextExtent(Tab.Caption);
+    TextSize := ACanvas.TextExtent(GetDisplayCaption(Tab));
 
   Result := R;
 
@@ -2744,6 +2784,38 @@ begin
     Result := ColorToRGB(AColor);
 end;
 
+// Returns the caption as it should appear on the tab:
+// 1. Padded with trailing spaces when shorter than FMinCaptionLen
+// 2. Truncated to FMaxCaptionLen with an ellipsis in the middle when longer
+//    first FMaxCaptionLen - 5 - Len(...) chars + '...' + last 5 chars
+// 3. 0 = no limit
+// The original caption is never modified, hints always show the full text
+function TExtTabCtrl.GetDisplayCaption(Tab: TExtTab): String;
+const
+  EllipsisStr = '...';
+  TailLen = 5;
+var
+  S: String;
+  HeadLen: Integer;
+begin
+  S := Tab.Caption;
+
+  // Minimum length: pad with spaces
+  if (FMinCaptionLen > 0) and (Length(S) < FMinCaptionLen) then
+    S := S + StringOfChar(' ', FMinCaptionLen - Length(S));
+
+  // Maximum length: middle ellipsis
+  if (FMaxCaptionLen > 0) and (Length(S) > FMaxCaptionLen) then
+  begin
+    // Head fills everything left after reserving tail + ellipsis
+    HeadLen := FMaxCaptionLen - TailLen - Length(EllipsisStr);
+    if HeadLen < 1 then HeadLen := 1;
+    S := Copy(S, 1, HeadLen) + EllipsisStr + Copy(S, Length(S) - TailLen + 1, TailLen);
+  end;
+
+  Result := S;
+end;
+
 // Draws the folder-tab separator line along the inner edge of the tab strip
 procedure TExtTabCtrl.DrawStripLine(ACanvas: TCanvas; const View: TRect);
 var
@@ -2863,8 +2935,8 @@ begin
     // Use cached text width and height; measure only when stale
     if FTabs[i].FTextWidth < 0 then
     begin
-      FTabs[i].FTextWidth := Canvas.TextWidth(FTabs[i].Caption);
-      FTabs[i].FTextHeight := Canvas.TextHeight(FTabs[i].Caption);
+      FTabs[i].FTextWidth  := Canvas.TextWidth(GetDisplayCaption(FTabs[i]));
+      FTabs[i].FTextHeight := Canvas.TextHeight(GetDisplayCaption(FTabs[i]));
     end;
     TxtExtent := FTabs[i].FTextWidth;
 
@@ -3990,6 +4062,8 @@ begin
   FTabOptions := [toActivateNewTab, toShowCloseButton, toShowAddButton,
                   toCloseOnMiddleClick, toAllowDragReorder, toGetFocus,
                   toShowFocusRect];
+  FMinCaptionLen := 5;
+  FMaxCaptionLen := 25;
 
   FInternalTabImages := TImageList.Create(self);
   FInternalTabImages.Scaled := true;
