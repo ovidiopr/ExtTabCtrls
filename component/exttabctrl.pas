@@ -15,7 +15,7 @@ unit ExtTabCtrl;
 interface
 
 uses                    LazLoggerBase,
-  Classes, SysUtils, Controls, Graphics, Buttons, LCLType, Types, Math,
+  Classes, SysUtils, Controls, FPImage, GraphType, Graphics, Buttons, LCLType, Types, Math,
   LResources, LCLIntf, GraphUtil, ImgList, LMessages, Forms, Menus,
   ComponentEditors, PropEdits, IntfGraphics, GraphPropEdits;
 
@@ -422,6 +422,8 @@ type
     function GetImageList: TCustomImageList; override;
   end;
 
+function IsDarkMode: Boolean;
+
 procedure Register;
 
 implementation
@@ -453,6 +455,15 @@ begin
   Result := RGB(Round(R1*(1 - Ratio) + R2*Ratio),
                 Round(G1*(1 - Ratio) + G2*Ratio),
                 Round(B1*(1 - Ratio) + B2*Ratio));
+end;
+
+function IsDarkMode: Boolean;
+var
+  bkClr, txtClr: TColor;
+begin
+  bkClr := ColorToRGB(clWindow);
+  txtClr := ColorToRGB(clWindowText);
+  Result := ColorToGray(txtClr) > ColorToGray(bkClr);
 end;
 
 procedure RotateBitmap(Source, Dest: TCustomBitmap; Degrees: Integer);
@@ -529,6 +540,41 @@ begin
   finally
     SrcIntf.Free;
     DestIntf.Free;
+  end;
+end;
+
+procedure RecolorImage(Img: TCustomBitmap; AColor: TColor);
+var
+  intfImg: TLazIntfImage;
+  x, y: Integer;
+  clr, tmpClr: TFPColor;
+begin
+  if Img = nil then
+    exit;
+
+  clr := TColorToFPColor(ColorToRGB(AColor));
+  intfImg := Img.CreateIntfImage;
+  try
+    intfImg.BeginUpdate;
+    try
+      for y := 0 to intfImg.Height - 1 do
+        for x := 0 to intfImg.Width - 1 do
+        begin
+          tmpClr := intfImg.Colors[x, y];
+          if tmpClr.Alpha > 0 then
+          begin
+            tmpClr.Red := clr.Red;
+            tmpClr.Green := clr.Green;
+            tmpClr.Blue := clr.Blue;
+            intfImg.Colors[x, y] := tmpClr;
+          end;
+        end;
+    finally
+      intfImg.EndUpdate;
+    end;
+    img.LoadFromIntfImage(intfImg);
+  finally
+    intfImg.Free;
   end;
 end;
 
@@ -2150,25 +2196,30 @@ var
   imgRes: TScaledImageListResolution;
   scale: Integer = 1;
   ppi: Integer;
+  effect: TGraphicsDrawEffect;
 begin
   if not (toShowCloseButton in FTabOptions) or not Tab.ShowCloseButton then Exit;
 
   ppi := Font.PixelsPerInch;
   CloseR := CloseButtonRect(Tab);
   Types.OffsetRect(CloseR, R.Left, R.Top);
+
   if FHoverCloseTab = Tab.Index then
   begin
-    ACanvas.Brush.Color := clSilver;
-    ACanvas.FillRect(CloseR);
-  end;
+//    ACanvas.Brush.Color := clSilver;
+//    ACanvas.FillRect(CloseR);
+    effect := gdeHighlighted;
+  end else
+    effect := gdeNormal;
 
-  if Assigned(FImages) and (FButtonImageIndexes.CloseIndex > -1) then
+  if Assigned(FImages) and (FButtonImageIndexes.CloseIndex >= 0) then
   begin
     imgRes := FInternalTabImages.ResolutionForPPI[FImagesWidth.CloseWidth, ppi, scale];
     imgRes.Draw(ACanvas,
       CloseR.Left + (CloseR.Width - imgRes.Width) div 2,
       CloseR.Top + (CloseR.Height - imgRes.Height) div 2,
-      FButtonImageIndexes.CloseIndex
+      FButtonImageIndexes.CloseIndex,
+      effect
     );
   end else
   if Assigned(FInternalBtnImages) then
@@ -2177,7 +2228,8 @@ begin
     imgRes.Draw(ACanvas,
       CloseR.Left + (CloseR.Width - imgRes.Width) div 2,
       CloseR.Top + (CloseR.Height - imgRes.Height) div 2,
-      cCloseIndex
+      cCloseIndex,
+      effect
     );
   end else
   begin
@@ -3702,6 +3754,8 @@ begin
 end;
 
 procedure TExtTabCtrl.PrepareInternalBtnImages(ARotation: Integer);
+const
+  DARKMODE_COLOR = clSilver; //clWindowText;
 var
   img100, img150, img200: TCustomBitmap;
 begin
@@ -3721,6 +3775,12 @@ begin
       RotateImage(img150, 270);
       RotateImage(img200, 270);
     end;
+    if IsDarkMode then
+    begin
+      RecolorImage(img100, DARKMODE_COLOR);
+      RecolorImage(img150, DARKMODE_COLOR);
+      RecolorImage(img200, DARKMODE_COLOR);
+    end;
     FInternalBtnImages.AddMultipleResolutions([img100, img150, img200]);
 
     img100.LoadFromResourceName(HInstance, 'tab_next');
@@ -3731,6 +3791,12 @@ begin
       RotateImage(img100, 270);
       RotateImage(img150, 270);
       RotateImage(img200, 270);
+    end;
+    if IsDarkMode then
+    begin
+      RecolorImage(img100, DARKMODE_COLOR);
+      RecolorImage(img150, DARKMODE_COLOR);
+      RecolorImage(img200, DARKMODE_COLOR);
     end;
     FInternalBtnImages.AddMultipleResolutions([img100, img150, img200]);
 
@@ -3743,11 +3809,23 @@ begin
       RotateImage(img150, ARotation);
       RotateImage(img200, ARotation);
     end;
+    if IsDarkMode then
+    begin
+      RecolorImage(img100, DARKMODE_COLOR);
+      RecolorImage(img150, DARKMODE_COLOR);
+      RecolorImage(img200, DARKMODE_COLOR);
+    end;
     FInternalBtnImages.AddMultipleResolutions([img100, img150, img200]);
 
     img100.LoadFromResourceName(HInstance, 'cross');
     img150.LoadFromResourceName(HInstance, 'cross_150');
     img200.LoadFromResourceName(HInstance, 'cross_200');
+    if IsDarkMode then
+    begin
+      RecolorImage(img100, DARKMODE_COLOR);
+      RecolorImage(img150, DARKMODE_COLOR);
+      RecolorImage(img200, DARKMODE_COLOR);
+    end;
     // cross is symmetrical --> no need for rotation
     FInternalBtnImages.AddMultipleResolutions([img100, img150, img200]);
   finally
