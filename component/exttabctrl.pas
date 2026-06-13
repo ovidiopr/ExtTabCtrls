@@ -61,7 +61,7 @@ type
     procedure Restore;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
   published
-    function GetOwner: TExtTabCtrl;
+    function GetOwner: TPersistent; override;
 
     property PrevIndex: TImageIndex index 0 read GetIndex write SetIndex default -1;
     property NextIndex: TImageIndex index 1 read GetIndex write SetIndex default -1;
@@ -160,7 +160,7 @@ type
     constructor Create(ACollection: TCollection); override;
     destructor Destroy; override;
 
-    function GetOwner: TExtTabCtrl;
+    function GetOwner: TPersistent; override;
 
     property BoundRect: TRect read FBoundRect;
   published
@@ -639,7 +639,7 @@ begin
   end;
 end;
 
-function TButtonImages.GetOwner: TExtTabCtrl;
+function TButtonImages.GetOwner: TPersistent;
 begin
   Result := FOwnerCtrl;
 end;
@@ -903,7 +903,7 @@ begin
   inherited Destroy;
 end;
 
-function TExtTab.GetOwner: TExtTabCtrl;
+function TExtTab.GetOwner: TPersistent;
 begin
   Result := FOwnerCtrl;
 end;

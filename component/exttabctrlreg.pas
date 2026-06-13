@@ -204,9 +204,9 @@ begin
   P := GetComponent(0);
 
   if P is TExtTab then
-    TC := TExtTab(P).GetOwner
+    TC := TExtTabCtrl(TExtTab(P).GetOwner)
   else if P is TButtonImages then
-    TC := TButtonImages(P).GetOwner
+    TC := TExtTabCtrl(TButtonImages(P).GetOwner)
   else
     Exit;
 
