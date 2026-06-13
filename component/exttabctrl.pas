@@ -42,6 +42,7 @@ type
   TTabImportEvent = procedure(Sender: TObject; Tab: TExtTab; AObject: TObject) of object;
   TButtonClickEvent = procedure(Sender: TObject) of object;
   TTabMouseEvent = procedure(Sender: TObject; Index: Integer) of object;
+  TTabDrawEvent = procedure(Sender: TObject; ACanvas: TCanvas; ARect: TRect; IsActive, IsHover: Boolean; var FontColor: TColor; var Indent: Integer) of object;
 
   TExtTabCtrl = class;
 
@@ -84,10 +85,12 @@ type
   TExtFontOptions = class(TPersistent)
   private
     FFontSize: Integer;
+    FFontColor: TColor;
     FFontStyles: TFontStyles;
     FOnRedraw: TNotifyEvent;
 
     procedure SetFontSize(AValue: Integer);
+    procedure SetFontColor(AValue: TColor);
     procedure SetFontStyles(AValue: TFontStyles);
   protected
     procedure Changed;
@@ -97,6 +100,7 @@ type
     property OnRedraw: TNotifyEvent read FOnRedraw write FOnRedraw;
   published
     property FontSize: Integer read FFontSize write SetFontSize default 0;
+    property FontColor: TColor read FFontColor write SetFontColor default clNone;
     property FontStyles: TFontStyles read FFontStyles write SetFontStyles default [];
   end;
 
@@ -232,6 +236,7 @@ type
     FOnLostFocus: TNotifyEvent;
     FOnMouseEnterTab: TTabMouseEvent;
     FOnMouseLeaveTab: TTabMouseEvent;
+    FOnDrawTab: TTabDrawEvent;
 
     FScrollOffset: Integer;
     FHoverTab, FHoverCloseTab: Integer;
@@ -273,7 +278,9 @@ type
     procedure SetAddMenu(AValue: TPopupMenu);
     function GetAddMenu: TPopupMenu;
 
-    procedure ButtonImageIndexesChanged(Sender: TObject);
+    procedure SetOnDrawTab(AValue: TTabDrawEvent);
+
+    procedure ButtonImagesChanged(Sender: TObject);
     procedure ImagesWidthChanged(Sender: TObject);
     function TabsViewportRect: TRect;
     procedure AnchorButtons;
@@ -286,7 +293,7 @@ type
     procedure EnsureTabVisible(Index: Integer);
     procedure UpdateScrollButtons;
     function GetScale(Value: Integer): Integer;
-    procedure DrawTabTextAndImage(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean);
+    procedure DrawTabTextAndImage(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean; DefaultFontColor: TColor);
     procedure DrawCloseButton(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean);
     procedure DrawColorStripe(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; Indent: Integer);
     procedure DrawStripLine(ACanvas: TCanvas; const View: TRect);
@@ -324,11 +331,11 @@ type
     procedure Resize; override;
     procedure CalcLayout;
 
-    procedure DrawFlatTab(ACanvas: TCanvas; R: TRect; IsActive: Boolean; Tab: TExtTab);
-    procedure DrawButtonTab(ACanvas: TCanvas; R: TRect; IsActive: Boolean; Tab: TExtTab);
-    procedure DrawDelphiTab(ACanvas: TCanvas; R: TRect; IsActive: Boolean; Tab: TExtTab);
-    procedure DrawChromeTab(ACanvas: TCanvas; R: TRect; IsActive: Boolean; Tab: TExtTab);
-    procedure DrawMacOSTab(ACanvas: TCanvas; R: TRect; IsActive: Boolean; Tab: TExtTab);
+    procedure DrawFlatTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
+    procedure DrawButtonTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
+    procedure DrawDelphiTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
+    procedure DrawChromeTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
+    procedure DrawMacOSTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
     procedure DrawTab(ACanvas: TCanvas; Index: Integer; ARect: TRect; IsActive: Boolean);
 
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
@@ -419,6 +426,7 @@ type
     property OnLostFocus: TNotifyEvent read FOnLostFocus write FOnLostFocus;
     property OnMouseEnterTab: TTabMouseEvent read FOnMouseEnterTab write FOnMouseEnterTab;
     property OnMouseLeaveTab: TTabMouseEvent read FOnMouseLeaveTab write FOnMouseLeaveTab;
+    property OnDrawTab: TTabDrawEvent read FOnDrawTab write SetOnDrawTab;
   end;
 
 function IsDarkMode: Boolean;
@@ -665,6 +673,15 @@ begin
   end;
 end;
 
+procedure TExtFontOptions.SetFontColor(AValue: TColor);
+begin
+  if FFontColor <> AValue then
+  begin
+    FFontColor := AValue;
+    Changed;
+  end;
+end;
+
 procedure TExtFontOptions.SetFontStyles(AValue: TFontStyles);
 begin
   if FFontStyles <> AValue then
@@ -682,6 +699,7 @@ end;
 constructor TExtFontOptions.Create;
 begin
   FFontSize := 0;
+  FFontColor := clNone;
   FFontStyles := [];
 end;
 
@@ -690,6 +708,7 @@ begin
   if Source is TExtFontOptions then
   begin
     FFontSize := TExtFontOptions(Source).FontSize;
+    FFontColor := TExtFontOptions(Source).FontColor;
     FFontStyles := TExtFontOptions(Source).FontStyles;
     Changed;
   end
@@ -1419,6 +1438,15 @@ begin
   Result := FBtnAdd.PopupMenu;
 end;
 
+procedure TExtTabCtrl.SetOnDrawTab(AValue: TTabDrawEvent);
+begin
+  if (AValue <> FOnDrawTab) then
+  begin
+    FOnDrawTab := AValue;
+    Invalidate;
+  end;
+end;
+
 procedure TExtTabCtrl.SetAddMenu(AValue: TPopupMenu);
 begin
   FBtnAdd.PopupMenu := AValue;
@@ -1977,7 +2005,7 @@ begin
   Result := Scale96ToFont(Value);
 end;
 
-procedure TExtTabCtrl.DrawTabTextAndImage(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean);
+procedure TExtTabCtrl.DrawTabTextAndImage(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean; DefaultFontColor: TColor);
 var
   TextRect: TRect;
   ImgPos: TPoint;
@@ -2002,7 +2030,11 @@ begin
       ACanvas.Font.Style := ACanvas.Font.Style + ActiveExtra;
   end;
 
-  if not IsActive then ACanvas.Font.Color := clGrayText;
+  if Tab.FFontOptions.FontColor <> clNone then
+    ACanvas.Font.Color := Tab.FFontOptions.FontColor
+  else
+    ACanvas.Font.Color := DefaultFontColor;
+
   ACanvas.Brush.Style := bsClear;
 
   TextRect := GetTabTextBounds(ACanvas, R, Tab);
@@ -2338,11 +2370,14 @@ end;
 
 { Drawing Handlers }
 
-procedure TExtTabCtrl.DrawFlatTab(ACanvas: TCanvas; R: TRect; IsActive: Boolean; Tab: TExtTab);
+procedure TExtTabCtrl.DrawFlatTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
 var
   P: array[0..3] of TPoint;
   BaseClr: TColor;
 begin
+  Indent := 2;
+  FontColor := IfThen(IsActive, Font.Color, clGrayText);
+
   // Draw Background
   if IsActive then
   begin
@@ -2365,15 +2400,6 @@ begin
   end;
   ACanvas.Brush.Style := bsSolid;
   ACanvas.FillRect(R);
-
-  // Draw Color Stripe
-  if (Tab.StripeColor <> clNone) then
-  begin
-    DrawColorStripe(ACanvas, R, Tab, 2);
-
-    ACanvas.Brush.Style := bsClear;
-    ACanvas.Pen.Style := psSolid;
-  end;
 
   // Border Logic
   ACanvas.Pen.Color := clBtnShadow;
@@ -2405,16 +2431,15 @@ begin
   end;
 
   if IsActive then ACanvas.Polyline(P) else ACanvas.Polygon(P);
-
-  // Draw Content
-  DrawTabTextAndImage(ACanvas, R, Tab, IsActive);
-  DrawCloseButton(ACanvas, R, Tab, IsActive);
 end;
 
-procedure TExtTabCtrl.DrawButtonTab(ACanvas: TCanvas; R: TRect; IsActive: Boolean; Tab: TExtTab);
+procedure TExtTabCtrl.DrawButtonTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
 var
   BaseClr, LightClr, ShadowClr, BackClr: TColor;
 begin
+  Indent := 2;
+  FontColor := IfThen(IsActive, Font.Color, clGrayText);
+
   if (Tab.Color <> clNone) then
   begin
     BaseClr := ResolveColor(Tab.Color);
@@ -2446,15 +2471,6 @@ begin
   ACanvas.Brush.Style := bsSolid;
   ACanvas.FillRect(R);
 
-  // Draw Color Stripe
-  if (Tab.StripeColor <> clNone) then
-  begin
-    DrawColorStripe(ACanvas, R, Tab, 2);
-
-    ACanvas.Brush.Style := bsClear;
-    ACanvas.Pen.Style := psSolid;
-  end;
-
   // Draw 3D Frame
   if IsActive then
   begin
@@ -2479,18 +2495,17 @@ begin
     ACanvas.Polyline([Point(R.Right - 1, R.Top), Point(R.Right - 1, R.Bottom - 1),
       Point(R.Left, R.Bottom - 1)]);
   end;
-
-  // Draw Content
-  DrawTabTextAndImage(ACanvas, R, Tab, IsActive);
-  DrawCloseButton(ACanvas, R, Tab, IsActive);
 end;
 
-procedure TExtTabCtrl.DrawDelphiTab(ACanvas: TCanvas; R: TRect; IsActive: Boolean; Tab: TExtTab);
+procedure TExtTabCtrl.DrawDelphiTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
 var
   P: array[0..3] of TPoint;
   S: Integer;
   BaseClr: TColor;
 begin
+  Indent := 4;
+  FontColor := IfThen(IsActive, Font.Color, clGrayText);
+
   S := GetScale(3); // Angle slant amount
 
   // Set Colors and draw background
@@ -2554,27 +2569,17 @@ begin
   end
   else
     ACanvas.Polygon(P);
-
-  // Draw Color Stripe following the narrower edge
-  if (Tab.StripeColor <> clNone) then
-  begin
-    DrawColorStripe(ACanvas, R, Tab, 4);
-
-    ACanvas.Brush.Style := bsClear;
-    ACanvas.Pen.Style := psSolid;
-    ACanvas.Pen.Color := clBtnShadow;
-  end;
-
-  DrawTabTextAndImage(ACanvas, R, Tab, IsActive);
-  DrawCloseButton(ACanvas, R, Tab, IsActive);
 end;
 
-procedure TExtTabCtrl.DrawChromeTab(ACanvas: TCanvas; R: TRect; IsActive: Boolean; Tab: TExtTab);
+procedure TExtTabCtrl.DrawChromeTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
 var
   Radius: Integer;
   StripeBounds: TRect;
   BaseClr: TColor;
 begin
+  Indent := 5;
+  FontColor := IfThen(IsActive, Font.Color, clGrayText);
+
   Radius := GetScale(8);
 
   // Background and hover
@@ -2683,27 +2688,17 @@ begin
       ACanvas.Pen.Width := 1;
     end;
   end;
-
-  // Draw Color Stripe (Accent)
-  if (Tab.StripeColor <> clNone) then
-  begin
-    DrawColorStripe(ACanvas, R, Tab, 5);
-
-    ACanvas.Brush.Style := bsClear;
-    ACanvas.Pen.Style := psSolid;
-  end;
-
-  // Draw content
-  DrawTabTextAndImage(ACanvas, R, Tab, IsActive);
-  DrawCloseButton(ACanvas, R, Tab, IsActive);
 end;
 
-procedure TExtTabCtrl.DrawMacOSTab(ACanvas: TCanvas; R: TRect; IsActive: Boolean; Tab: TExtTab);
+procedure TExtTabCtrl.DrawMacOSTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
 var
   Radius: Integer;
   DrawR: TRect;
   BaseClr: TColor;
 begin
+  Indent := 6;
+  FontColor := IfThen(IsActive, clWindowText, clGrayText);
+
   Radius := GetScale(6);
   DrawR := R;
 
@@ -2760,19 +2755,6 @@ begin
       ACanvas.LineTo(R.Right - 1, R.Bottom - GetScale(7));
     end;
   end;
-
-  // Draw Color Stripe (Accent)
-  if (Tab.StripeColor <> clNone) then
-  begin
-    DrawColorStripe(ACanvas, R, Tab, 6);
-
-    ACanvas.Brush.Style := bsClear;
-    ACanvas.Pen.Style := psSolid;
-  end;
-
-  ACanvas.Font.Color := IfThen(IsActive, clWindowText, clGrayText);
-  DrawTabTextAndImage(ACanvas, R, Tab, IsActive);
-  DrawCloseButton(ACanvas, R, Tab, IsActive);
 end;
 
 // Resolves clDefault and other system colors before mixing
@@ -2878,14 +2860,47 @@ begin
 end;
 
 procedure TExtTabCtrl.DrawTab(ACanvas: TCanvas; Index: Integer; ARect: TRect; IsActive: Boolean);
+var
+  IsHover: Boolean;
+  FontColor: TColor;
+  Indent: Integer;
+  Tab: TExtTab;
+  TabRect: TRect;
 begin
-  case FTabStyle of
-    tsButton: DrawButtonTab(ACanvas, ARect, IsActive, FTabs[Index]);
-    tsDelphi: DrawDelphiTab(ACanvas, ARect, IsActive, FTabs[Index]);
-    tsMacOS: DrawMacOSTab(ACanvas, ARect, IsActive, FTabs[Index]);
-    tsFlat: DrawFlatTab(ACanvas, ARect, IsActive, FTabs[Index]);
-    tsChrome: DrawChromeTab(ACanvas, ARect, IsActive, FTabs[Index]);
+  Tab := FTabs[Index];
+  IsHover := (Index = FHoverTab);
+  TabRect := ARect;
+
+  // Sensible defaults; the style procedure (or OnDrawTab) may override either.
+  FontColor := IfThen(IsActive, Font.Color, clGrayText);
+  Indent := 2;
+
+  // If the user has assigned a custom draw event, use it
+  // Otherwise, dispatch to the built-in style
+  // Either way the background/border is drawn here
+  if Assigned(FOnDrawTab) then
+    FOnDrawTab(Self, ACanvas, TabRect, IsActive, IsHover, FontColor, Indent)
+  else
+  begin
+    case FTabStyle of
+      tsButton: DrawButtonTab(ACanvas, TabRect, IsActive, Tab, FontColor, Indent);
+      tsDelphi: DrawDelphiTab(ACanvas, TabRect, IsActive, Tab, FontColor, Indent);
+      tsMacOS:  DrawMacOSTab(ACanvas, TabRect, IsActive, Tab, FontColor, Indent);
+      tsFlat:   DrawFlatTab(ACanvas, TabRect, IsActive, Tab, FontColor, Indent);
+      tsChrome: DrawChromeTab(ACanvas, TabRect, IsActive, Tab, FontColor, Indent);
+    end;
   end;
+
+  // Content common to every style: color stripe, image, caption, close button.
+  if (Tab.StripeColor <> clNone) then
+  begin
+    DrawColorStripe(ACanvas, TabRect, Tab, Indent);
+    ACanvas.Brush.Style := bsClear;
+    ACanvas.Pen.Style := psSolid;
+  end;
+
+  DrawTabTextAndImage(ACanvas, TabRect, Tab, IsActive, FontColor);
+  DrawCloseButton(ACanvas, TabRect, Tab, IsActive);
 end;
 
 procedure TExtTabCtrl.CalcLayout;
@@ -2918,6 +2933,8 @@ begin
     Canvas.Font.Assign(Font);
     if FTabs[i].FFontOptions.FontSize > 0 then
       Canvas.Font.Size := FTabs[i].FFontOptions.FontSize;
+    if FTabs[i].FFontOptions.FontColor <> clNone then
+      Canvas.Font.Color := FTabs[i].FFontOptions.FontColor;
     if FTabs[i].FFontOptions.FontStyles <> [] then
       Canvas.Font.Style := FTabs[i].FFontOptions.FontStyles;
 
