@@ -12,11 +12,11 @@ object Form1: TForm1
   OnCreate = FormCreate
   object GroupBox1: TGroupBox
     Left = 0
-    Height = 204
-    Top = 36
+    Height = 208
+    Top = 32
     Width = 368
     Align = alClient
-    ClientHeight = 177
+    ClientHeight = 181
     ClientWidth = 358
     TabOrder = 0
     object lblStyle: TLabel
@@ -42,6 +42,7 @@ object Form1: TForm1
         'Delphi'
         'Chrome'
         'MacOS'
+        'Custom (XP)'
       )
       Style = csDropDownList
       TabOrder = 1
@@ -76,7 +77,7 @@ object Form1: TForm1
     end
     object MemoLog: TMemo
       Left = 8
-      Height = 100
+      Height = 104
       Top = 71
       Width = 344
       Anchors = [akTop, akLeft, akRight, akBottom]
@@ -86,7 +87,7 @@ object Form1: TForm1
   end
   object ExtTabCtrl1: TExtTabCtrl
     Left = 0
-    Height = 36
+    Height = 32
     Top = 0
     Width = 368
     Align = alTop
@@ -103,7 +104,7 @@ object Form1: TForm1
         ImageIndex = 4
       end>
     TabIndex = 0
-    TabSize = 36
+    TabSize = 32
     TabOptions = [toActivateNewTab, toShowCloseButton, toShowAddButton, toCloseOnMiddleClick, toAllowDragReorder, toRotateTabImages, toRotateAddImage, toGetFocus, toActiveBold]
     Images = ImageList1
     ButtonImages.PrevIndex = 1
