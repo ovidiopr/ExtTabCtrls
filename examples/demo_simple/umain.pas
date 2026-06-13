@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls,
-  ExtTabCtrl, LCLIntf, LResources, Menus;
+  ExtTabCtrl, LCLIntf, LResources, Menus, Types;
 
 type
   { TForm1 }
@@ -24,6 +24,9 @@ type
     MenuItem3: TMenuItem;
     MenuItem4: TMenuItem;
     PopupMenu1: TPopupMenu;
+    procedure ExtTabCtrl1DrawTab(Sender: TObject; ACanvas: TCanvas;
+      ARect: TRect; IsActive, IsHover: Boolean; var FontColor: TColor;
+      var Indent: Integer);
     procedure ExtTabCtrl1ImportTab(Sender: TObject; Tab: TExtTab; AObject: TObject);
     procedure ExtTabCtrl1TabReordered(Sender: TObject; OldIndex, NewIndex: Integer);
     procedure FormCreate(Sender: TObject);
@@ -148,7 +151,13 @@ end;
 
 procedure TForm1.cbStyleChange(Sender: TObject);
 begin
-  ExtTabCtrl1.TabStyle := TTabStyle(cbStyle.ItemIndex);
+  if (cbStyle.ItemIndex >= 0) and (cbStyle.ItemIndex <= Ord(tsMacOS)) then
+  begin
+    ExtTabCtrl1.OnDrawTab := nil;
+    ExtTabCtrl1.TabStyle := TTabStyle(cbStyle.ItemIndex);
+  end
+  else
+    ExtTabCtrl1.OnDrawTab := @ExtTabCtrl1DrawTab;
 end;
 
 procedure TForm1.cbPosChange(Sender: TObject);
@@ -196,6 +205,99 @@ begin
     Tab.Data := AObject;
     Log('New tab imported, containing an object')
   end;
+end;
+
+procedure TForm1.ExtTabCtrl1DrawTab(Sender: TObject; ACanvas: TCanvas;
+  ARect: TRect; IsActive, IsHover: Boolean; var FontColor: TColor; var Indent: Integer);
+const
+  // XP-style palette
+  ClrActiveBase   = $0030AD39; // active tab: green
+  ClrInactiveBase = $00D28E25; // inactive tab: blue
+  ClrHoverBase    = $00F0A030; // inactive tab, hovered: lighter blue
+  ClrShadow       = $00804000; // dark edge shadow
+var
+  Horizontal: Boolean;
+  BaseClr, OuterClr, InnerClr, GlowClr: TColor;
+  StartClr, StopClr: TColor;
+
+  // Simple linear blend between two colours (Ratio 0 = C1, 1 = C2)
+  function Blend(C1, C2: TColor; Ratio: Single): TColor;
+  var
+    R1, G1, B1, R2, G2, B2: Byte;
+  begin
+    C1 := ColorToRGB(C1);
+    C2 := ColorToRGB(C2);
+    R1 := GetRValue(C1); G1 := GetGValue(C1); B1 := GetBValue(C1);
+    R2 := GetRValue(C2); G2 := GetGValue(C2); B2 := GetBValue(C2);
+    Result := RGB(Round(R1*(1 - Ratio) + R2*Ratio),
+                  Round(G1*(1 - Ratio) + G2*Ratio),
+                  Round(B1*(1 - Ratio) + B2*Ratio));
+  end;
+
+begin
+  // tpTop/tpBottom -> wide tabs, gradient runs top-to-bottom.
+  // tpLeft/tpRight -> tall tabs, gradient runs left-to-right.
+  Horizontal := (Sender as TExtTabCtrl).IsHorizontal;
+
+  // Pick the base color for this state
+  if IsActive then
+    BaseClr := ClrActiveBase
+  else if IsHover then
+    BaseClr := ClrHoverBase
+  else
+    BaseClr := ClrInactiveBase;
+
+  OuterClr := Blend(BaseClr, clWhite, 0.35); // glossy highlight
+  InnerClr := Blend(BaseClr, clBlack, 0.10); // slightly deeper base tone
+
+  if IsActive then
+  begin
+    StartClr := InnerClr;
+    StopClr  := Blend(BaseClr, clWhite, 0.20);
+  end
+  else
+  begin
+    StartClr := OuterClr;
+    StopClr  := InnerClr;
+  end;
+
+  ACanvas.Brush.Style := bsSolid;
+  if Horizontal then
+    ACanvas.GradientFill(ARect, StartClr, StopClr, gdVertical)
+  else
+    ACanvas.GradientFill(ARect, StartClr, StopClr, gdHorizontal);
+
+  // 3D bevel with a consistent top-left light source
+  // Raised tabs get highlight on Top+Left and shadow on Bottom+Right
+  // The active tab is pressed in, so the bevel is inverted
+  if IsActive then
+  begin
+    ACanvas.Pen.Color := ClrShadow;
+    ACanvas.Line(ARect.Left, ARect.Top, ARect.Right, ARect.Top);
+    ACanvas.Line(ARect.Left, ARect.Top, ARect.Left, ARect.Bottom);
+
+    ACanvas.Pen.Color := Blend(BaseClr, clWhite, 0.5);
+    ACanvas.Line(ARect.Right - 1, ARect.Top, ARect.Right - 1, ARect.Bottom);
+    ACanvas.Line(ARect.Left, ARect.Bottom - 1, ARect.Right, ARect.Bottom - 1);
+
+    GlowClr := Blend(BaseClr, clWhite, 0.6);
+    ACanvas.Pen.Color := GlowClr;
+    ACanvas.Frame(ARect.Left, ARect.Top, ARect.Right - 1, ARect.Bottom - 1);
+  end
+  else
+  begin
+    ACanvas.Pen.Color := clWhite;
+    ACanvas.Line(ARect.Left, ARect.Top, ARect.Right, ARect.Top);
+    ACanvas.Line(ARect.Left, ARect.Top, ARect.Left, ARect.Bottom);
+
+    ACanvas.Pen.Color := ClrShadow;
+    ACanvas.Line(ARect.Right - 1, ARect.Top, ARect.Right - 1, ARect.Bottom);
+    ACanvas.Line(ARect.Left, ARect.Bottom - 1, ARect.Right, ARect.Bottom - 1);
+  end;
+
+  // XP taskbar buttons use white text in every state
+  FontColor := clWhite;
+  Indent := 2;
 end;
 
 end.
