@@ -3039,7 +3039,7 @@ end;
 
 procedure TExtTabCtrl.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
-  i, NT: Integer;
+  i, HoverNewTab: Integer;
   TabRect: TRect;
   MousePos: Integer;
   V: TRect;
@@ -3059,7 +3059,7 @@ begin
 
   inherited MouseMove(Shift, X, Y);
 
-  NT := TabAtPos(X, Y);
+  HoverNewTab := TabAtPos(X, Y);
   V := TabsViewportRect;
 
   // Capture existing hint to detect change
@@ -3068,27 +3068,27 @@ begin
   if not FDragging then
   begin
     // Update hover state and dynamic hint
-    if FHoverTab <> NT then
+    if FHoverTab <> HoverNewTab then
     begin
       // Mouse left the old tab
       if (FHoverTab <> -1) and Assigned(FOnMouseLeaveTab) then
         FOnMouseLeaveTab(Self, FHoverTab);
 
       // Mouse entered the new tab
-      if (NT <> -1) and Assigned(FOnMouseEnterTab) then
-        FOnMouseEnterTab(Self, NT);
+      if (HoverNewTab <> -1) and Assigned(FOnMouseEnterTab) then
+        FOnMouseEnterTab(Self, HoverNewTab);
 
-      FHoverTab := NT;
+      FHoverTab := HoverNewTab;
 
       if ShowHint then
       begin
-        if (NT <> -1) then
+        if (HoverNewTab <> -1) then
         begin
           // Set hint to Tab.Hint or fallback to Tab.Text
-          if FTabs[NT].Hint <> '' then
-            Self.Hint := FTabs[NT].Hint
+          if FTabs[HoverNewTab].Hint <> '' then
+            Self.Hint := FTabs[HoverNewTab].Hint
           else
-            Self.Hint := FTabs[NT].Caption;
+            Self.Hint := FTabs[HoverNewTab].Caption;
         end
         else
         begin
@@ -3128,20 +3128,20 @@ begin
       FHoverCloseTab := -1;
       Invalidate;  // clear the button that was previously highlighted
     end;
-    if (NT <> -1) and (toShowCloseButton in FTabOptions) and
-       FTabs[NT].ShowCloseButton then
+    if (HoverNewTab <> -1) and (toShowCloseButton in FTabOptions) and
+       FTabs[HoverNewTab].ShowCloseButton then
     begin
-      TabRect := FTabs[NT].FBoundRect;
+      TabRect := FTabs[HoverNewTab].FBoundRect;
       if IsHorizontal then
         Types.OffsetRect(TabRect, V.Left - FScrollOffset, V.Top)
       else
         Types.OffsetRect(TabRect, V.Left, V.Top - FScrollOffset);
 
       P := Point(X, Y);
-      if PtInRect(CloseButtonRect(FTabs[NT]), Point(P.X - TabRect.Left,
+      if PtInRect(CloseButtonRect(FTabs[HoverNewTab]), Point(P.X - TabRect.Left,
         P.Y - TabRect.Top)) then
       begin
-        FHoverCloseTab := NT;
+        FHoverCloseTab := HoverNewTab;
         Invalidate;
       end;
     end;
@@ -3435,11 +3435,20 @@ begin
   inherited;
 
   if Assigned(FBtnAdd) then
+  begin
     FBtnAdd.ShowHint := Self.ShowHint and (FButtonHints.AddHint <> '');
+    FBtnAdd.Hint := FButtonHints.AddHint;
+  end;
   if Assigned(FBtnScrollPrev) then
+  begin
     FBtnScrollPrev.ShowHint := Self.ShowHint and (FButtonHints.ScrollPrevHint <> '');
+    FBtnScrollPrev.Hint := FButtonHints.ScrollPrevHint;
+  end;
   if Assigned(FBtnScrollNext) then
+  begin
     FBtnScrollNext.ShowHint := Self.ShowHint and (FButtonHints.ScrollNextHint <> '');
+    FBtnScrollNext.Hint := FButtonHints.ScrollNextHint;
+  end;
 end;
 
 procedure TExtTabCtrl.CMFontChanged(var Message: TLMessage);

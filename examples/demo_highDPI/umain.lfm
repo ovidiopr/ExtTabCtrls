@@ -45,6 +45,9 @@ object Form1: TForm1
     ButtonImages.NextIndex = 2
     ButtonImages.AddIndex = 0
     ButtonImages.CloseIndex = 3
+    ButtonHints.AddHint = 'Add Tab'
+    ButtonHints.ScrollPrevHint = 'Previous Tab'
+    ButtonHints.ScrollNextHint = 'Next Tab'
     OnTabCreated = ExtTabCtrl1TabCreated
   end
   object RadioGroup1: TRadioGroup
