@@ -2143,7 +2143,9 @@ begin
 
     // Account for Image
     if HasAnyImage(Tab) then
-      Inc(TxtRect.Left, GetTabImageWidth(Tab) + Spacing);
+      Inc(TxtRect.Left, GetTabImageWidth(Tab) + Spacing)
+    else
+      Inc(TxtRect.Left, Indent);
 
     // Account for Close Button
     if (toShowCloseButton in FTabOptions) and Tab.ShowCloseButton then
