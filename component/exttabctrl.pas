@@ -279,6 +279,7 @@ type
     procedure DrawColorStripe(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; Indent: Integer);
     procedure DrawStripLine(ACanvas: TCanvas; const View: TRect);
     function ResolveColor(AColor: TColor): TColor;
+    function TabBorderColor: TColor;
 
     procedure DrawTabImage(ACanvas: TCanvas; Tab: TExtTab; X, Y: Integer);
     procedure DrawRotatedText(ACanvas: TCanvas; const S: String; const R: TRect; Degrees: Integer);
@@ -2349,7 +2350,7 @@ begin
   ACanvas.FillRect(R);
 
   // Border Logic
-  ACanvas.Pen.Color := clBtnShadow;
+  ACanvas.Pen.Color := TabBorderColor;
   case FTabPosition of
     tpTop: begin
       P[0] := Point(R.Left, R.Bottom - 1);
@@ -2476,7 +2477,7 @@ begin
       ACanvas.Brush.Color := BaseClr;
   end;
 
-  ACanvas.Pen.Color := clBtnShadow;
+  ACanvas.Pen.Color := TabBorderColor;
   ACanvas.Brush.Style := bsSolid;
 
   // Define Polygon Points for the tab body
@@ -2511,7 +2512,7 @@ begin
   begin
     ACanvas.Brush.Style := bsSolid;
     ACanvas.Polygon(P);
-    ACanvas.Pen.Color := clBtnShadow;
+    ACanvas.Pen.Color := TabBorderColor;
     ACanvas.Polyline(P);
   end
   else
@@ -2571,7 +2572,7 @@ begin
   if IsActive or (Tab.Index = FHoverTab) or
      (not IsActive and (Tab.Color <> clNone)) then
   begin
-    ACanvas.Pen.Color := clBtnShadow;
+    ACanvas.Pen.Color := TabBorderColor;
     case FTabPosition of
       tpTop:
         ACanvas.RoundRect(R.Left, R.Top, R.Right, R.Bottom + Radius, Radius, Radius);
@@ -2585,7 +2586,7 @@ begin
   end;
 
   // Draw the shadow line for all tabs on the side touching the body
-  ACanvas.Pen.Color := clBtnShadow;
+  ACanvas.Pen.Color := TabBorderColor;
   case FTabPosition of
     tpTop: ACanvas.Line(R.Left, R.Bottom - 1, R.Right, R.Bottom - 1);
     tpBottom: ACanvas.Line(R.Left, R.Top, R.Right, R.Top);
@@ -2597,7 +2598,7 @@ begin
   if not IsActive and (Tab.Index <> FHoverTab) and
      (Tab.Index <> FTabIndex - 1) and (Tab.Color = clNone) then
   begin
-    ACanvas.Pen.Color := clBtnShadow;
+    ACanvas.Pen.Color := TabBorderColor;
     if IsHorizontal then
       ACanvas.Line(R.Right - 1, R.Top + GetScale(6), R.Right - 1, R.Bottom - GetScale(6))
     else
@@ -2713,6 +2714,14 @@ begin
     Result := ColorToRGB(AColor);
 end;
 
+function TExtTabCtrl.TabBorderColor: TColor;
+begin
+  if IsDarkMode then
+    Result := BlendColors(clBtnShadow, clWhite, 0.65)  // lighten in dark mode
+  else
+    Result := clBtnShadow;
+end;
+
 // Returns the caption as it should appear on the tab:
 // 1. Padded with trailing spaces when shorter than FMinCaptionLen
 // 2. Truncated to FMaxCaptionLen with an ellipsis in the middle when longer
@@ -2753,7 +2762,7 @@ var
 begin
   if (FTabStyle = tsMacOS) then Exit;
 
-  ACanvas.Pen.Color := clBtnShadow;
+  ACanvas.Pen.Color := TabBorderColor;
   ACanvas.Pen.Width := 1;
   ACanvas.Pen.Style := psSolid;
 
