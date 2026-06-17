@@ -274,6 +274,9 @@ type
     procedure EnsureTabVisible(Index: Integer);
     procedure UpdateScrollButtons;
     function GetScale(Value: Integer): Integer;
+    // Returns the minimum tab painted size below which the tab is skipped entirely
+    function MinUsefulTabSize: Integer;
+
     procedure DrawTabTextAndImage(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean; DefaultFontColor: TColor);
     procedure DrawCloseButton(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean);
     procedure DrawColorStripe(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; Indent: Integer);
@@ -1793,7 +1796,7 @@ function TExtTabCtrl.TabAtPos(X, Y: Integer): Integer;
 var
   i: Integer;
   P: TPoint;
-  V: TRect;
+  R, V, Dummy: TRect;
 begin
   Result := -1;
   V := TabsViewportRect;
@@ -1802,8 +1805,28 @@ begin
     P := Point(X - V.Left + FScrollOffset, Y - V.Top)
   else
     P := Point(X - V.Left, Y - V.Top + FScrollOffset);
+
   for i := 0 to FTabs.Count - 1 do
-    if PtInRect(FTabs[i].FBoundRect, P) then Exit(i);
+  begin
+    R := FTabs[i].FBoundRect;
+
+    if PtInRect(R, P) then
+    begin
+      if IsHorizontal then
+        Types.OffsetRect(R, V.Left - FScrollOffset, V.Top)
+      else
+        Types.OffsetRect(R, V.Left, V.Top - FScrollOffset);
+
+      if IntersectRect(Dummy, R, V) then
+      begin
+        // Filter out tiny or scrolled out tabs using the exact same Paint threshold
+        if IsHorizontal and (Dummy.Width < MinUsefulTabSize) then Continue;
+        if Isvertical and (Dummy.Height < MinUsefulTabSize) then Continue;
+
+        Exit(i);
+      end;
+    end;
+  end;
 end;
 
 function TExtTabCtrl.MaxScrollOffset: Integer;
@@ -1909,6 +1932,11 @@ end;
 function TExtTabCtrl.GetScale(Value: Integer): Integer;
 begin
   Result := Scale96ToFont(Value);
+end;
+
+function TExtTabCtrl.MinUsefulTabSize: Integer;
+begin
+  Result := GetScale(16 + 2*cContentIndent);
 end;
 
 procedure TExtTabCtrl.DrawTabTextAndImage(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean; DefaultFontColor: TColor);
@@ -2197,7 +2225,7 @@ begin
 
       XClr := IfThen(FHoverCloseTab = Tab.Index, clRed, TColor($004040CC));
 
-      // First arm: top-left → bottom-right (12 vertices, clock-wise)
+      // First arm: top-left --> bottom-right (12 vertices, clock-wise)
       // We trace the outline of both arms as one 12-point polygon.
       P[ 0] := Point(CX - D, CY - D + H);   // left arm, top-left
       P[ 1] := Point(CX - D + H, CY - D);   // left arm, top-right
@@ -2897,12 +2925,22 @@ begin
       begin
         if not FTabs[i].Visible then Continue;
         R := FTabs[i].FBoundRect;
-        if IsHorizontal then Types.OffsetRect(R, View.Left - FScrollOffset, View.Top)
+        if IsHorizontal then
+          Types.OffsetRect(R, View.Left - FScrollOffset, View.Top)
         else
           Types.OffsetRect(R, View.Left, View.Top - FScrollOffset);
 
         if IntersectRect(Dummy, R, View) then
+        begin
+          // Prevent drawing visual artifacts (like an isolated close button)
+          // when only a tiny sliver of the tab is currently scrolled into view
+          if IsHorizontal and (Dummy.Width < MinUsefulTabSize) then
+            Continue;
+          if IsVertical and (Dummy.Height < MinUsefulTabSize) then
+            Continue;
+
           DrawTab(Canvas, i, R, i = FTabIndex);
+        end;
       end;
 
       // Draw drop indicator (where the tab will be inserted)
