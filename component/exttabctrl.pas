@@ -277,8 +277,8 @@ type
     procedure EnsureTabVisible(Index: Integer);
     procedure UpdateScrollButtons;
     function GetScale(Value: Integer): Integer;
-    // Returns the minimum tab painted size below which the tab is skipped entirely
     function MinUsefulTabSize: Integer;
+    function GetIconExtent(AImageIndex, AImageWidth: Integer; IsWidth: Boolean): Integer;
 
     procedure DrawTabTextAndImage(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean; DefaultFontColor: TColor);
     procedure DrawCloseButton(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean);
@@ -1641,49 +1641,22 @@ end;
 // correctly positioned automatically on every resize
 procedure TExtTabCtrl.AnchorButtons;
 var
-  ScrollPrevW, ScrollPrevH, ScrollNextW, ScrollNextH, AddW, AddH, ppi: Integer;
+  ScrollPrevW, ScrollPrevH, ScrollNextW, ScrollNextH, AddW, AddH: Integer;
   ShowAdd: Boolean;
-  NextLeft, NextTop: Integer;
-  AddLeft, AddTop: Integer;
   imgBorder, BtnThick: Integer;
 begin
   if (csDestroying in ComponentState) or not HandleAllocated then Exit;
 
-  ppi := Font.PixelsPerInch;
   imgBorder := Scale96ToFont(2);
 
-  if Assigned(FImages) and (FButtonImageIndexes.ScrollPrevIndex > -1) then
-  begin
-    ScrollPrevW := FInternalImages.WidthForPPI[FImagesWidth.PrevWidth, ppi];
-    ScrollPrevH := FInternalImages.HeightForPPI[FImagesWidth.PrevWidth, ppi];
-  end
-  else
-  begin
-    ScrollPrevW := GetScale(16);
-    ScrollPrevH := GetScale(16);
-  end;
+  ScrollPrevW := GetIconExtent(FButtonImageIndexes.ScrollPrevIndex, FImagesWidth.PrevWidth, True);
+  ScrollPrevH := GetIconExtent(FButtonImageIndexes.ScrollPrevIndex, FImagesWidth.PrevWidth, False);
 
-  if Assigned(FImages) and (FButtonImageIndexes.ScrollNextIndex > -1) then
-  begin
-    ScrollNextW := FInternalImages.WidthForPPI[FImagesWidth.NextWidth, ppi];
-    ScrollNextH := FInternalImages.HeightForPPI[FImagesWidth.NextWidth, ppi];
-  end
-  else
-  begin
-    ScrollNextW := GetScale(16);
-    ScrollNextH := GetScale(16);
-  end;
+  ScrollNextW := GetIconExtent(FButtonImageIndexes.ScrollNextIndex, FImagesWidth.NextWidth, True);
+  ScrollNextH := GetIconExtent(FButtonImageIndexes.ScrollNextIndex, FImagesWidth.NextWidth, False);
 
-  if Assigned(FImages) and (FButtonImageIndexes.AddIndex > -1) then
-  begin
-    AddW := FInternalImages.WidthForPPI[FImagesWidth.AddWidth, ppi];
-    AddH := FInternalImages.HeightForPPI[FImagesWidth.AddWidth, ppi];
-  end
-  else
-  begin
-    AddW := GetScale(16);
-    AddH := GetScale(16);
-  end;
+  AddW := GetIconExtent(FButtonImageIndexes.AddIndex, FImagesWidth.AddWidth, True);
+  AddH := GetIconExtent(FButtonImageIndexes.AddIndex, FImagesWidth.AddWidth, False);
 
   // The Add button is always visible at design time
   ShowAdd := (toShowAddButton in FTabOptions) or (csDesigning in ComponentState);
@@ -1870,21 +1843,11 @@ end;
 
 function TExtTabCtrl.CloseButtonRect(Tab: TExtTab): TRect;
 var
-  CloseW, CloseH, M, ppi: Integer;
+  CloseW, CloseH, M: Integer;
 begin
-  ppi := Font.PixelsPerInch;
-
   // Determine dynamic Close Button size
-  if Assigned(FImages) and (FButtonImageIndexes.CloseIndex > -1) then
-  begin
-    CloseW := FInternalImages.WidthForPPI[FImagesWidth.CloseWidth, ppi];
-    CloseH := FInternalImages.HeightForPPI[FImagesWidth.CloseWidth, ppi];
-  end
-  else
-  begin
-    CloseW := GetScale(16);
-    CloseH := GetScale(16);
-  end;
+  CloseW := GetIconExtent(FButtonImageIndexes.CloseIndex, FImagesWidth.CloseWidth, True);
+  CloseH := GetIconExtent(FButtonImageIndexes.CloseIndex, FImagesWidth.CloseWidth, False);
 
   M := GetScale(cContentIndent);
 
@@ -1949,7 +1912,27 @@ end;
 
 procedure TExtTabCtrl.EnsureTabVisible(Index: Integer);
 var
-  R, View: TRect;
+  R: TRect;
+
+  procedure AdjustScrollOffset(const AView: TRect);
+    begin
+      if IsHorizontal then
+      begin
+        if R.Right > FScrollOffset + AView.Width then
+          FScrollOffset := R.Right - AView.Width;
+        if R.Left < FScrollOffset then
+          FScrollOffset := R.Left;
+      end
+      else
+      begin
+        if R.Bottom > FScrollOffset + AView.Height then
+          FScrollOffset := R.Bottom - AView.Height;
+        if R.Top < FScrollOffset then
+          FScrollOffset := R.Top;
+      end;
+      if FScrollOffset < 0 then FScrollOffset := 0;
+    end;
+
 begin
   if (Index < 0) or (Index >= FTabs.Count) then Exit;
 
@@ -1957,46 +1940,11 @@ begin
   CalcLayout;
 
   R := FTabs[Index].FBoundRect;
-  View := TabsViewportRect;
 
-  if IsHorizontal then
-  begin
-    if R.Right > FScrollOffset + View.Width then
-      FScrollOffset := R.Right - View.Width;
-    // Re-check left: scrolling right may have been an overshoot,
-    // or the tab may simply be off to the left
-    if R.Left < FScrollOffset then
-      FScrollOffset := R.Left;
-  end
-  else
-  begin
-    if R.Bottom > FScrollOffset + View.Height then
-      FScrollOffset := R.Bottom - View.Height;
-    if R.Top < FScrollOffset then
-      FScrollOffset := R.Top;
-  end;
-
-  if FScrollOffset < 0 then FScrollOffset := 0;
-
+  AdjustScrollOffset(TabsViewportRect);
   UpdateScrollButtons;
-  View := TabsViewportRect;
-
-  if IsHorizontal then
-  begin
-    if R.Right > FScrollOffset + View.Width then
-      FScrollOffset := R.Right - View.Width;
-    if R.Left < FScrollOffset then
-      FScrollOffset := R.Left;
-  end
-  else
-  begin
-    if R.Bottom > FScrollOffset + View.Height then
-      FScrollOffset := R.Bottom - View.Height;
-    if R.Top < FScrollOffset then
-      FScrollOffset := R.Top;
-  end;
-
-  if FScrollOffset < 0 then FScrollOffset := 0;
+  // Re-evaluate based on updated scroll buttons
+  AdjustScrollOffset(TabsViewportRect);
 
   SnapScrollOffset;
   UpdateScrollButtons;
@@ -2039,6 +1987,22 @@ end;
 function TExtTabCtrl.MinUsefulTabSize: Integer;
 begin
   Result := GetScale(16 + 2*cContentIndent);
+end;
+
+function TExtTabCtrl.GetIconExtent(AImageIndex, AImageWidth: Integer; IsWidth: Boolean): Integer;
+var
+  ppi: Integer;
+begin
+  if Assigned(FImages) and (AImageIndex > -1) then
+  begin
+    ppi := Font.PixelsPerInch;
+    if IsWidth then
+      Result := FInternalImages.WidthForPPI[AImageWidth, ppi]
+    else
+      Result := FInternalImages.HeightForPPI[AImageWidth, ppi];
+  end
+  else
+    Result := GetScale(16);
 end;
 
 procedure TExtTabCtrl.DrawTabTextAndImage(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean; DefaultFontColor: TColor);
@@ -2172,14 +2136,13 @@ end;
 
 function TExtTabCtrl.GetTabTextBounds(ACanvas: TCanvas; const R: TRect; Tab: TExtTab): TRect;
 var
-  Indent, Spacing, CloseW, CloseH, ImgH, ppi: Integer;
+  Indent, Spacing, CloseW, CloseH, ImgH: Integer;
   TextSize: TSize;
   TxtRect: TRect;
   CX, CY: Integer;
 begin
   Indent := GetScale(cContentIndent);
   Spacing := GetScale(cImageSpacing);
-  ppi := Font.PixelsPerInch;
 
   // Reuse the cached dimensions measured in CalcLayout, except when the cache is stale
   if Tab.FTextWidth >= 0 then
@@ -2194,10 +2157,7 @@ begin
 
   if IsHorizontal then
   begin
-    if Assigned(FImages) and (FButtonImageIndexes.CloseIndex > -1) then
-      CloseW := FInternalImages.WidthForPPI[FImagesWidth.CloseWidth, ppi]
-    else
-      CloseW := GetScale(16);
+    CloseW := GetIconExtent(FButtonImageIndexes.CloseIndex, FImagesWidth.CloseWidth, True);
 
     TxtRect := R;
     TxtRect.Left := R.Left + Indent;
@@ -2222,11 +2182,8 @@ begin
   else
   begin
     // Mirroring DrawVerticalTab logic
-    if Assigned(FImages) and (FButtonImageIndexes.CloseIndex > -1) then
-      CloseH := FInternalImages.HeightForPPI[FImagesWidth.CloseWidth, ppi]
-    else
-      CloseH := GetScale(16);
-      
+    CloseH := GetIconExtent(FButtonImageIndexes.CloseIndex, FImagesWidth.CloseWidth, False);
+
     TxtRect := R;
     InflateRect(TxtRect, -Indent, -Indent);
 
@@ -2881,7 +2838,7 @@ procedure TExtTabCtrl.CalcLayout;
 var
   i, Pos, TabLen: Integer;
   TxtExtent, ImgExtent,
-  CloseExtent, Padding, ppi: Integer;
+  CloseExtent, Padding: Integer;
   ActiveExtra: TFontStyles;
   ImgW, ImgH: Integer;
 begin
@@ -2891,7 +2848,6 @@ begin
   Canvas.Font.Assign(Font);
   Pos := 0;
   Padding := GetScale(cContentIndent)*2;
-  ppi := Font.PixelsPerInch;
 
   for i := 0 to FTabs.Count - 1 do
   begin
@@ -2949,22 +2905,7 @@ begin
     end;
 
     if (toShowCloseButton in FTabOptions) and FTabs[i].ShowCloseButton then
-    begin
-      if IsHorizontal then
-      begin
-        if Assigned(FImages) and (FButtonImageIndexes.CloseIndex > -1) then
-          CloseExtent := FInternalImages.WidthForPPI[FImagesWidth.CloseWidth, ppi]
-        else
-          CloseExtent := GetScale(16);
-      end
-      else
-      begin
-        if Assigned(FImages) and (FButtonImageIndexes.CloseIndex > -1) then
-          CloseExtent := FInternalImages.HeightForPPI[FImagesWidth.CloseWidth, ppi]
-        else
-          CloseExtent := GetScale(16);
-      end;
-    end
+      CloseExtent := GetIconExtent(FButtonImageIndexes.CloseIndex, FImagesWidth.CloseWidth, IsHorizontal)
     else
       CloseExtent := 0;
 
@@ -3704,32 +3645,15 @@ begin
   ppi := Font.PixelsPerInch;
 
   // Start with the scroll/add button glyph sizes
-  if Assigned(FImages) and (FButtonImageIndexes.ScrollPrevIndex > -1) then
-    ScrollPrevExtent := IfThen(IsHorizontal, FInternalImages.HeightForPPI[FImagesWidth.PrevWidth, ppi], FInternalImages.WidthForPPI[FImagesWidth.PrevWidth, ppi])
-  else
-    ScrollPrevExtent := GetScale(16);
-
-  if Assigned(FImages) and (FButtonImageIndexes.ScrollNextIndex > -1) then
-    ScrollNextExtent := IfThen(IsHorizontal, FInternalImages.HeightForPPI[FImagesWidth.NextWidth, ppi], FInternalImages.WidthForPPI[FImagesWidth.NextWidth, ppi])
-  else
-    ScrollNextExtent := GetScale(16);
-
-  if Assigned(FImages) and (FButtonImageIndexes.AddIndex > -1) then
-    AddExtent := IfThen(IsHorizontal, FInternalImages.HeightForPPI[FImagesWidth.AddWidth, ppi], FInternalImages.WidthForPPI[FImagesWidth.AddWidth, ppi])
-  else
-    AddExtent := GetScale(16);
+  ScrollPrevExtent := GetIconExtent(FButtonImageIndexes.ScrollPrevIndex, FImagesWidth.PrevWidth, IsVertical);
+  ScrollNextExtent := GetIconExtent(FButtonImageIndexes.ScrollNextIndex, FImagesWidth.NextWidth, IsVertical);
+  AddExtent := GetIconExtent(FButtonImageIndexes.AddIndex, FImagesWidth.AddWidth, IsVertical);
 
   MinStrip := Max(Max(ScrollPrevExtent, ScrollNextExtent), AddExtent);
 
   // Account for the close button glyph
   if toShowCloseButton in FTabOptions then
-  begin
-    if Assigned(FImages) and (FButtonImageIndexes.CloseIndex > -1) then
-      CloseExtent := IfThen(IsHorizontal, FInternalImages.HeightForPPI[FImagesWidth.CloseWidth, ppi], FInternalImages.WidthForPPI[FImagesWidth.CloseWidth, ppi])
-    else
-      CloseExtent := GetScale(16);
-    MinStrip := Max(MinStrip, CloseExtent);
-  end;
+    CloseExtent := GetIconExtent(FButtonImageIndexes.CloseIndex, FImagesWidth.CloseWidth, IsVertical);
 
   // Account for per-tab images coming from the shared ImageList
   if Assigned(FImages) then
