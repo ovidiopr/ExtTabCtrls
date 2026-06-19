@@ -1413,7 +1413,7 @@ begin
       PrepareInternalTabImages(GetRotationForPosition);
 
       // When crossing between horizontal and vertical swap Width and Height
-      // so the tab strip keeps the same thickness in the new orientation.
+      // so the tab strip keeps the same thickness in the new orientation
       if WasVertical <> WillBeVertical then
       begin
         W := Width;
@@ -1424,19 +1424,11 @@ begin
       UpdateBtnImages;
       AnchorButtons;
 
-      // Mark the internal layout (tab rects) as dirty
       InvalidateLayout;
-
-      // Tell the LCL autosize engine the preferred size has changed
       InvalidatePreferredSize;
+      if AutoSize then AdjustSize;
     finally
       EndUpdate;
-      if AutoSize then AdjustSize;
-
-      if FTabIndex >= 0 then
-        EnsureTabVisible(FTabIndex) // This forces a full repaint of the control
-      else
-        Invalidate;
     end;
   end;
 end;
@@ -3106,7 +3098,10 @@ begin
   if not HandleAllocated then Exit;
   FLayoutDirty := True;
   if FUpdateCount = 0 then
+  begin
     CalcLayout;
+    NormalizeState;
+  end;
 
   Invalidate;
 end;
@@ -3774,7 +3769,14 @@ end;
 procedure TExtTabCtrl.EndUpdate;
 begin
   if FUpdateCount > 0 then Dec(FUpdateCount);
-  if FUpdateCount = 0 then InvalidateLayout;
+  if FUpdateCount = 0 then
+  begin
+    InvalidateLayout;
+    if FTabIndex >= 0 then
+      EnsureTabVisible(FTabIndex)
+    else
+      NormalizeState;
+  end;
 end;
 
 procedure TExtTabCtrl.InvalidateLayout;

@@ -162,12 +162,17 @@ end;
 
 procedure TForm1.cbPosChange(Sender: TObject);
 begin
-  ExtTabCtrl1.TabPosition := TTabPosition(cbPos.ItemIndex);
-  case ExtTabCtrl1.TabPosition of
-    tpTop: ExtTabCtrl1.Align := alTop;
-    tpBottom: ExtTabCtrl1.Align := alBottom;
-    tpLeft: ExtTabCtrl1.Align := alLeft;
-    tpRight: ExtTabCtrl1.Align := alRight;
+  ExtTabCtrl1.BeginUpdate;
+  try
+    ExtTabCtrl1.TabPosition := TTabPosition(cbPos.ItemIndex);
+    case ExtTabCtrl1.TabPosition of
+      tpTop:  ExtTabCtrl1.Align := alTop;
+      tpBottom: ExtTabCtrl1.Align := alBottom;
+      tpLeft: ExtTabCtrl1.Align := alLeft;
+      tpRight: ExtTabCtrl1.Align := alRight;
+    end;
+  finally
+    ExtTabCtrl1.EndUpdate;
   end;
 end;
 
