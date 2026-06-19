@@ -54,8 +54,13 @@ implementation
 
 procedure TForm1.RadioGroup1Click(Sender: TObject);
 begin
-  ExtTabCtrl1.TabPosition := TTabPosition(RadioGroup1.ItemIndex);
-  ExtTabCtrl1.Align := TAlign(RadioGroup1.ItemIndex + 1);
+  ExtTabCtrl1.BeginUpdate;
+  try
+    ExtTabCtrl1.TabPosition := TTabPosition(RadioGroup1.ItemIndex);
+    ExtTabCtrl1.Align := TAlign(RadioGroup1.ItemIndex + 1);
+  finally
+    ExtTabCtrl1.EndUpdate;
+  end;
 end;
 
 procedure TForm1.RadioGroup2Click(Sender: TObject);
