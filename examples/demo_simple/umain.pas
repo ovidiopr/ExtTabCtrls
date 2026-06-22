@@ -27,7 +27,7 @@ type
     PopupMenu1: TPopupMenu;
     procedure chbCustomButtonsChange(Sender: TObject);
     procedure ExtTabCtrl1DrawButton(Sender: TObject; ACanvas: TCanvas; ARect: TRect;
-      AButtonType: TButtonType; ATab: TExtTab; IsActive, IsHover: Boolean);
+      AButtonType: TButtonType; ATab: TExtTab; IsActive, IsHover: Boolean; var Skip: Boolean);
     procedure ExtTabCtrl1DrawTab(Sender: TObject; ACanvas: TCanvas;
       ARect: TRect; IsActive, IsHover: Boolean; var FontColor: TColor; var Indent: Integer);
     procedure ExtTabCtrl1ImportTab(Sender: TObject; Tab: TExtTab; AObject: TObject);
@@ -314,7 +314,8 @@ begin
 end;
 
 procedure TForm1.ExtTabCtrl1DrawButton(Sender: TObject; ACanvas: TCanvas;
-  ARect: TRect; AButtonType: TButtonType; ATab: TExtTab; IsActive, IsHover: Boolean);
+  ARect: TRect; AButtonType: TButtonType; ATab: TExtTab; IsActive, IsHover: Boolean;
+  var Skip: Boolean);
 var
   CX, CY, D: Integer;
   IsVert: Boolean;
