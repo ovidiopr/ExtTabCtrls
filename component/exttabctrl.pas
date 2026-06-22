@@ -36,7 +36,7 @@ type
   TTabMouseEvent = procedure(Sender: TObject; Index: Integer) of object;
   TTabDrawEvent = procedure(Sender: TObject; ACanvas: TCanvas; ARect: TRect; IsActive, IsHover: Boolean; var FontColor: TColor; var Indent: Integer) of object;
   TButtonDrawEvent = procedure(Sender: TObject; ACanvas: TCanvas; ARect: TRect;
-    AButtonType: TButtonType; ATab: TExtTab; IsActive, IsHover: Boolean) of object;
+    AButtonType: TButtonType; ATab: TExtTab; IsActive, IsHover: Boolean; var Skip: Boolean) of object;
 
   TExtTabCtrl = class;
 
@@ -439,7 +439,28 @@ procedure DrawBtnClose(ACanvas: TCanvas; ARect: TRect; IsHover: Boolean);
 
 implementation
 
+type
+  TPenState = record
+    Color: TColor;
+    Width: Integer;
+    Style: TPenStyle;
+  end;
+
 { Global Helpers }
+function SavePen(ACanvas: TCanvas): TPenState;
+begin
+  Result.Color := ACanvas.Pen.Color;
+  Result.Width := ACanvas.Pen.Width;
+  Result.Style := ACanvas.Pen.Style;
+end;
+
+procedure RestorePen(ACanvas: TCanvas; const State: TPenState);
+begin
+  ACanvas.Pen.Color := State.Color;
+  ACanvas.Pen.Width := State.Width;
+  ACanvas.Pen.Style := State.Style;
+end;
+
 procedure SwapIntegers(var A, B: Integer);
 var
   Temp: Integer;
@@ -516,89 +537,105 @@ procedure DrawBtnScroll(ACanvas: TCanvas; ARect: TRect; ANext, AHorizontal: Bool
 var
   ASize, CX, CY, R: Integer;
   P: array[0..2] of TPoint;
+  SavedPen: TPenState;
 begin
-  CX := ARect.Width div 2;
-  CY := ARect.Height div 2;
-  ASize := Min(ARect.Width, ARect.Height);
+  SavedPen := SavePen(ACanvas);
 
-  // R determines the scale of the triangle
-  R := Max(4, 2*ASize div 5);
+  try
+    CX := ARect.Width div 2;
+    CY := ARect.Height div 2;
+    ASize := Min(ARect.Width, ARect.Height);
 
-  // Mathematically precise 45-degree slope assignments
-  if AHorizontal then
-  begin
-    if ANext then begin // Pointing Right
-      P[0] := Point(CX - (R div 2), CY - R);
-      P[1] := Point(CX + (R div 2), CY);
-      P[2] := Point(CX - (R div 2), CY + R);
+    // R determines the scale of the triangle
+    R := Max(4, 2*ASize div 5);
+
+    // Mathematically precise 45-degree slope assignments
+    if AHorizontal then
+    begin
+      if ANext then begin // Pointing Right
+        P[0] := Point(CX - (R div 2), CY - R);
+        P[1] := Point(CX + (R div 2), CY);
+        P[2] := Point(CX - (R div 2), CY + R);
+      end
+      else
+      begin // Pointing Left
+        P[0] := Point(CX + (R div 2), CY - R);
+        P[1] := Point(CX - (R div 2), CY);
+        P[2] := Point(CX + (R div 2), CY + R);
+      end;
     end
     else
-    begin // Pointing Left
-      P[0] := Point(CX + (R div 2), CY - R);
-      P[1] := Point(CX - (R div 2), CY);
-      P[2] := Point(CX + (R div 2), CY + R);
+    begin
+      if ANext then begin // Pointing Down
+        P[0] := Point(CX - R, CY - (R div 2));
+        P[1] := Point(CX + R, CY - (R div 2));
+        P[2] := Point(CX, CY + (R div 2));
+      end
+      else
+      begin // Pointing Up
+        P[0] := Point(CX - R, CY + (R div 2));
+        P[1] := Point(CX + R, CY + (R div 2));
+        P[2] := Point(CX, CY - (R div 2));
+      end;
     end;
-  end
-  else
-  begin
-    if ANext then begin // Pointing Down
-      P[0] := Point(CX - R, CY - (R div 2));
-      P[1] := Point(CX + R, CY - (R div 2));
-      P[2] := Point(CX, CY + (R div 2));
-    end
-    else
-    begin // Pointing Up
-      P[0] := Point(CX - R, CY + (R div 2));
-      P[1] := Point(CX + R, CY + (R div 2));
-      P[2] := Point(CX, CY - (R div 2));
-    end;
+
+    ACanvas.Pen.Color := IfThen(IsDarkMode, $00F79A6D, $009E4320);
+    ACanvas.Pen.Width := 1;
+    ACanvas.Pen.Style := psSolid;
+    ACanvas.Brush.Color := IfThen(IsDarkMode, $009E4320, $00F79A6D);
+    ACanvas.Brush.Style := bsSolid;
+
+    ACanvas.Polygon(P);
+  finally
+    // Restore the original Pen state
+    RestorePen(ACanvas, SavedPen);
   end;
-
-  ACanvas.Pen.Color := IfThen(IsDarkMode, $00F79A6D, $009E4320);
-  ACanvas.Pen.Width := 1;
-  ACanvas.Pen.Style := psSolid;
-  ACanvas.Brush.Color := IfThen(IsDarkMode, $009E4320, $00F79A6D);
-  ACanvas.Brush.Style := bsSolid;
-
-  ACanvas.Polygon(P);
 end;
 
 procedure DrawBtnAdd(ACanvas: TCanvas; ARect: TRect);
 var
   ASize, CX, CY, L, W: Integer;
   P: array[0..11] of TPoint;
+  SavedPen: TPenState;
 begin
-  CX := ARect.Width div 2;
-  CY := ARect.Height div 2;
+  SavedPen := SavePen(ACanvas);
 
-  ASize := Min(ARect.Width, ARect.Height);
+  try
+    CX := ARect.Width div 2;
+    CY := ARect.Height div 2;
 
-  // L = Length of the cross arms from center
-  L := 2*ASize div 5;
-  // W = Half-thickness of the cross arms (Total thickness will be W*2)
-  W := Max(2, ASize div 8);
+    ASize := Min(ARect.Width, ARect.Height);
 
-  // Plot out a thick, symmetrical 12-pointed cross clockwise
-  P[0] := Point(CX - W, CY - L);  // Top arm, top-left
-  P[1] := Point(CX + W, CY - L);  // Top arm, top-right
-  P[2] := Point(CX + W, CY - W);  // Inner corner top-right
-  P[3] := Point(CX + L, CY - W);  // Right arm, top-left
-  P[4] := Point(CX + L, CY + W);  // Right arm, bottom-left
-  P[5] := Point(CX + W, CY + W);  // Inner corner bottom-right
-  P[6] := Point(CX + W, CY + L);  // Bottom arm, bottom-right
-  P[7] := Point(CX - W, CY + L);  // Bottom arm, bottom-left
-  P[8] := Point(CX - W, CY + W);  // Inner corner bottom-left
-  P[9] := Point(CX - L, CY + W);  // Left arm, bottom-right
-  P[10] := Point(CX - L, CY - W); // Left arm, top-right
-  P[11] := Point(CX - W, CY - W); // Inner corner top-left
+    // L = Length of the cross arms from center
+    L := 2*ASize div 5;
+    // W = Half-thickness of the cross arms (Total thickness will be W*2)
+    W := Max(2, ASize div 8);
 
-  ACanvas.Pen.Color := IfThen(IsDarkMode, $005CD66A, $00146E20);
-  ACanvas.Pen.Width := 1;
-  ACanvas.Pen.Style := psSolid;
-  ACanvas.Brush.Color := IfThen(IsDarkMode, $00146E20, $005CD66A);
-  ACanvas.Brush.Style := bsSolid;
+    // Plot out a thick, symmetrical 12-pointed cross clockwise
+    P[0] := Point(CX - W, CY - L);  // Top arm, top-left
+    P[1] := Point(CX + W, CY - L);  // Top arm, top-right
+    P[2] := Point(CX + W, CY - W);  // Inner corner top-right
+    P[3] := Point(CX + L, CY - W);  // Right arm, top-left
+    P[4] := Point(CX + L, CY + W);  // Right arm, bottom-left
+    P[5] := Point(CX + W, CY + W);  // Inner corner bottom-right
+    P[6] := Point(CX + W, CY + L);  // Bottom arm, bottom-right
+    P[7] := Point(CX - W, CY + L);  // Bottom arm, bottom-left
+    P[8] := Point(CX - W, CY + W);  // Inner corner bottom-left
+    P[9] := Point(CX - L, CY + W);  // Left arm, bottom-right
+    P[10] := Point(CX - L, CY - W); // Left arm, top-right
+    P[11] := Point(CX - W, CY - W); // Inner corner top-left
 
-  ACanvas.Polygon(P);
+    ACanvas.Pen.Color := IfThen(IsDarkMode, $005CD66A, $00146E20);
+    ACanvas.Pen.Width := 1;
+    ACanvas.Pen.Style := psSolid;
+    ACanvas.Brush.Color := IfThen(IsDarkMode, $00146E20, $005CD66A);
+    ACanvas.Brush.Style := bsSolid;
+
+    ACanvas.Polygon(P);
+  finally
+    // Restore the original Pen state
+    RestorePen(ACanvas, SavedPen);
+  end;
 end;
 
 procedure DrawBtnClose(ACanvas: TCanvas; ARect: TRect; IsHover: Boolean);
@@ -606,13 +643,9 @@ var
   P: array[0..11] of TPoint;
   D, H, CX, CY: Integer;
   XClr: TColor;
-  SavedPenColor: TColor;
-  SavedPenWidth: Integer;
-  SavedPenStyle: TPenStyle;
+  SavedPen: TPenState;
 begin
-  SavedPenColor := ACanvas.Pen.Color;
-  SavedPenWidth := ACanvas.Pen.Width;
-  SavedPenStyle := ACanvas.Pen.Style;
+  SavedPen := SavePen(ACanvas);
 
   try
     CX := ARect.Left + ARect.Width div 2;
@@ -643,10 +676,8 @@ begin
     ACanvas.Pen.Style := psSolid;
     ACanvas.Polygon(P);
   finally
-    // Restore the original state of the Pen regardless of what happened
-    ACanvas.Pen.Color := SavedPenColor;
-    ACanvas.Pen.Width := SavedPenWidth;
-    ACanvas.Pen.Style := SavedPenStyle;
+    // Restore the original Pen state
+    RestorePen(ACanvas, SavedPen);
   end;
 end;
 
@@ -1398,6 +1429,8 @@ var
   Btn: TSpeedButton;
   ImgRes: TScaledImageListResolution;
   ppi, scale: Integer;
+  Skip: Boolean;
+  SavedPen: TPenState;
 begin
   Btn := TSpeedButton(Sender);
 
@@ -1411,7 +1444,17 @@ begin
   end
   // User-supplied drawing
   else if Assigned(FOnDrawButton) then
-    FOnDrawButton(Self, Btn.Canvas, Btn.ClientRect, btAdd, nil, False, False)
+  begin
+    Skip := False;
+    SavedPen := SavePen(Btn.Canvas);
+    try
+      FOnDrawButton(Self, Btn.Canvas, Btn.ClientRect, btAdd, nil, False, False, Skip);
+    finally
+      RestorePen(Btn.Canvas, SavedPen);
+    end;
+
+    if Skip then DrawBtnAdd(Btn.Canvas, Btn.ClientRect);
+  end
   else // Built-in icon
     DrawBtnAdd(Btn.Canvas, Btn.ClientRect);
 end;
@@ -1424,6 +1467,8 @@ var
   IsNext: Boolean;
   ImgIndex: Integer;
   BtnType: TButtonType;
+  Skip: Boolean;
+  SavedPen: TPenState;
 begin
   Btn := TSpeedButton(Sender);
   IsNext := (Btn = FBtnScrollNext);
@@ -1440,7 +1485,17 @@ begin
   end
   // User-supplied drawing
   else if Assigned(FOnDrawButton) then
-    FOnDrawButton(Self, Btn.Canvas, Btn.ClientRect, BtnType, nil, False, False)
+  begin
+    Skip := False;
+    SavedPen := SavePen(Btn.Canvas);
+    try
+      FOnDrawButton(Self, Btn.Canvas, Btn.ClientRect, BtnType, nil, False, False, Skip);
+    finally
+      RestorePen(Btn.Canvas, SavedPen);
+    end;
+
+    if Skip then DrawBtnScroll(Btn.Canvas, Btn.ClientRect, IsNext, IsHorizontal);
+  end
   else // Built-in icon
     DrawBtnScroll(Btn.Canvas, Btn.ClientRect, IsNext, IsHorizontal);
 end;
@@ -2452,6 +2507,8 @@ var
   ppi: Integer;
   effect: TGraphicsDrawEffect;
   IsHover: Boolean;
+  Skip: Boolean;
+  SavedPen: TPenState;
 begin
   if not (toShowCloseButton in FTabOptions) or not Tab.ShowCloseButton then Exit;
 
@@ -2475,7 +2532,17 @@ begin
   end
   // User-supplied drawing
   else if Assigned(FOnDrawButton) then
-    FOnDrawButton(Self, ACanvas, CloseR, btClose, Tab, IsActive, IsHover)
+  begin
+    Skip := False;
+    SavedPen := SavePen(ACanvas);
+    try
+      FOnDrawButton(Self, ACanvas, CloseR, btClose, Tab, IsActive, IsHover, Skip);
+    finally
+      RestorePen(ACanvas, SavedPen);
+    end;
+
+    if Skip then DrawBtnClose(ACanvas, CloseR, IsHover);
+  end
   else // Built-in icon
     DrawBtnClose(ACanvas, CloseR, IsHover);
 end;
@@ -2957,6 +3024,7 @@ var
   Indent: Integer;
   Tab: TExtTab;
   TabRect: TRect;
+  SavedPen: TPenState;
 begin
   Tab := FTabs[Index];
   IsHover := (Index = FHoverTab);
@@ -2968,7 +3036,14 @@ begin
 
   // Use the custom draw event (if ssigned) or the built-in style
   if Assigned(FOnDrawTab) then
-    FOnDrawTab(Self, ACanvas, TabRect, IsActive, IsHover, FontColor, Indent)
+  begin
+    SavedPen := SavePen(ACanvas);
+    try
+      FOnDrawTab(Self, ACanvas, TabRect, IsActive, IsHover, FontColor, Indent);
+    finally
+      RestorePen(ACanvas, SavedPen);
+    end;
+  end
   else
   begin
     case FTabStyle of
@@ -3024,8 +3099,7 @@ begin
     if FTabs[i].FFontOptions.FontStyles <> [] then
       Canvas.Font.Style := FTabs[i].FFontOptions.FontStyles;
 
-    // If the active tab will be rendered bold/italic, measure with those
-    // styles applied so the tab is wide enough to hold its caption
+    // Measure text with all styles applied
     if i = FTabIndex then
     begin
       ActiveExtra := [];
