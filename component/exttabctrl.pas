@@ -146,8 +146,6 @@ type
     FShowCloseButton: Boolean;
     FTextWidth: Integer;
     FTextHeight: Integer;
-    FCachedTabImage: TBitmap;
-    FCachedImageRotation: Integer;
     procedure SetCaption(AValue: TCaption);
     procedure SetColor(AValue: TColor);
     procedure SetStripeColor(AValue: TColor);
@@ -253,7 +251,6 @@ type
     procedure EndInternalChange;
     procedure NormalizeState;
     procedure CancelDrag;
-    procedure InvalidateTabImageCaches;
 
     procedure SetTabIndex(AValue: Integer);
     procedure SetTabSize(AValue: Integer);
@@ -988,7 +985,6 @@ procedure TExtTab.SetImage(AValue: TBitmap);
 begin
   if FImage = AValue then Exit;
   FreeAndNil(FImage);
-  FreeAndNil(FCachedTabImage);
   FImage := AValue;
   FTextWidth := -1;
   Redraw(Self);
@@ -999,7 +995,6 @@ procedure TExtTab.SetImageIndex(AValue: TImageIndex);
 begin
   if FImageIndex = AValue then Exit;
   FImageIndex := AValue;
-  FreeAndNil(FCachedTabImage);
   FTextWidth := -1;
   FTextHeight := -1;
   Redraw(Self);
@@ -1037,8 +1032,6 @@ begin
   FImageIndex := -1;
   FTextWidth := -1;
   FTextHeight := -1;
-  FCachedTabImage := nil;
-  FCachedImageRotation := -1;
   FShowCloseButton := True;
   // Provide a default caption so new tabs are never empty
   FCaption := 'New Tab ' + IntToStr(Index + 1);
@@ -1047,7 +1040,6 @@ end;
 destructor TExtTab.Destroy;
 begin
   FImage.Free;
-  FCachedTabImage.Free;
   FFontOptions.Free;
   inherited Destroy;
 end;
@@ -1177,17 +1169,6 @@ begin
      ((FDragIndex < 0) or (FDragIndex >= FTabs.Count) or
       (FDragTargetIndex > FTabs.Count)) then
     CancelDrag;
-end;
-
-procedure TExtTabCtrl.InvalidateTabImageCaches;
-var
-  i: Integer;
-begin
-  for i := 0 to FTabs.Count - 1 do
-  begin
-    FreeAndNil(FTabs[i].FCachedTabImage);
-    FTabs[i].FCachedImageRotation := -1;
-  end;
 end;
 
 procedure TExtTabCtrl.SnapScrollOffset;
@@ -1533,9 +1514,6 @@ begin
       FTabPosition := AValue;
       FScrollOffset := 0;
 
-      // Rotation angle changed --> per-tab image caches are stale
-      InvalidateTabImageCaches;
-
       // Process the external images into the internal list
       PrepareInternalTabImages(GetRotationForPosition);
 
@@ -1598,7 +1576,6 @@ begin
     PrepareInternalTabImages(GetRotationForPosition);
 
     UpdateBtnImages;
-    InvalidateTabImageCaches;
     InvalidateLayout;
   end;
 end;
@@ -1724,8 +1701,6 @@ end;
 
 procedure TExtTabCtrl.ImagesWidthChanged(Sender: TObject);
 begin
-  // Drop the cached tab images
-  InvalidateTabImageCaches;
   // Re-trigger the button image extraction
   UpdateBtnImages;
 end;
@@ -1819,6 +1794,13 @@ var
   ScrollPrevW, ScrollPrevH, ScrollNextW, ScrollNextH, AddW, AddH: Integer;
   ShowAdd: Boolean;
   imgBorder, BtnThick: Integer;
+
+  procedure SetAnchorSide(Btn: TSpeedButton; Side: TAnchorKind; Control: TControl; AnchorSide: TAnchorSideReference);
+  begin
+    Btn.AnchorSide[Side].Control := Control;
+    Btn.AnchorSide[Side].Side := AnchorSide;
+  end;
+
 begin
   if (csDestroying in ComponentState) or not HandleAllocated then Exit;
 
@@ -1847,18 +1829,15 @@ begin
       FBtnScrollPrev.Anchors := [akLeft, akTop]
     else
       FBtnScrollPrev.Anchors := [akLeft, akBottom];
-    FBtnScrollPrev.AnchorSide[akLeft].Control := Self;
-    FBtnScrollPrev.AnchorSide[akLeft].Side := asrLeft;
+    SetAnchorSide(FBtnScrollPrev, akLeft, Self, asrLeft);
     if (FTabPosition = etpTop) then
     begin
-      FBtnScrollPrev.AnchorSide[akTop].Control := Self;
-      FBtnScrollPrev.AnchorSide[akTop].Side := asrTop;
+      SetAnchorSide(FBtnScrollPrev, akTop, Self, asrTop);
       FBtnScrollPrev.Anchors := [akLeft, akTop];
     end
     else
     begin
-      FBtnScrollPrev.AnchorSide[akBottom].Control := Self;
-      FBtnScrollPrev.AnchorSide[akBottom].Side := asrBottom;
+      SetAnchorSide(FBtnScrollPrev, akBottom, Self, asrBottom);
       FBtnScrollPrev.Anchors := [akLeft, akBottom];
     end;
     FBtnScrollPrev.Constraints.MinHeight := BtnThick;
@@ -1872,18 +1851,15 @@ begin
       FBtnAdd.Anchors := [akRight, akTop]
     else
       FBtnAdd.Anchors := [akRight, akBottom];
-    FBtnAdd.AnchorSide[akRight].Control := Self;
-    FBtnAdd.AnchorSide[akRight].Side := asrRight;
+    SetAnchorSide(FBtnAdd, akRight, Self, asrRight);
     if (FTabPosition = etpTop) then
     begin
-      FBtnAdd.AnchorSide[akTop].Control := Self;
-      FBtnAdd.AnchorSide[akTop].Side := asrTop;
+      SetAnchorSide(FBtnAdd, akTop, Self, asrTop);
       FBtnAdd.Anchors := [akRight, akTop];
     end
     else
     begin
-      FBtnAdd.AnchorSide[akBottom].Control := Self;
-      FBtnAdd.AnchorSide[akBottom].Side := asrBottom;
+      SetAnchorSide(FBtnAdd, akBottom, Self, asrBottom);
       FBtnAdd.Anchors := [akRight, akBottom];
     end;
     FBtnAdd.Constraints.MinHeight := BtnThick;
@@ -1895,14 +1871,12 @@ begin
     // Scroll-Next: just left of Add, full strip height
     if (FTabPosition = etpTop) then
     begin
-      FBtnScrollNext.AnchorSide[akTop].Control := Self;
-      FBtnScrollNext.AnchorSide[akTop].Side := asrTop;
+      SetAnchorSide(FBtnScrollNext, akTop, Self, asrTop);
       FBtnScrollNext.Anchors := [akRight, akTop];
     end
     else
     begin
-      FBtnScrollNext.AnchorSide[akBottom].Control := Self;
-      FBtnScrollNext.AnchorSide[akBottom].Side := asrBottom;
+      SetAnchorSide(FBtnScrollNext, akBottom, Self, asrBottom);
       FBtnScrollNext.Anchors := [akRight, akBottom];
     end;
     FBtnScrollNext.Constraints.MinHeight := BtnThick;
@@ -1931,18 +1905,15 @@ begin
       FBtnScrollPrev.Anchors := [akLeft, akTop]
     else
       FBtnScrollPrev.Anchors := [akRight, akTop];
-    FBtnScrollPrev.AnchorSide[akTop].Control := Self;
-    FBtnScrollPrev.AnchorSide[akTop].Side := asrTop;
+    SetAnchorSide(FBtnScrollPrev, akTop, Self, asrTop);
     if (FTabPosition = etpLeft) then
     begin
-      FBtnScrollPrev.AnchorSide[akLeft].Control := Self;
-      FBtnScrollPrev.AnchorSide[akLeft].Side := asrLeft;
+      SetAnchorSide(FBtnScrollPrev, akLeft, Self, asrLeft);
       FBtnScrollPrev.Anchors := [akLeft, akTop];
     end
     else
     begin
-      FBtnScrollPrev.AnchorSide[akRight].Control := Self;
-      FBtnScrollPrev.AnchorSide[akRight].Side := asrRight;
+      SetAnchorSide(FBtnScrollPrev, akRight, Self, asrRight);
       FBtnScrollPrev.Anchors := [akRight, akTop];
     end;
     FBtnScrollPrev.Constraints.MinWidth := BtnThick;
@@ -1954,18 +1925,15 @@ begin
       FBtnAdd.Anchors := [akLeft, akBottom]
     else
       FBtnAdd.Anchors := [akRight, akBottom];
-    FBtnAdd.AnchorSide[akBottom].Control := Self;
-    FBtnAdd.AnchorSide[akBottom].Side := asrBottom;
+    SetAnchorSide(FBtnAdd, akBottom, Self, asrBottom);
     if (FTabPosition = etpLeft) then
     begin
-      FBtnAdd.AnchorSide[akLeft].Control := Self;
-      FBtnAdd.AnchorSide[akLeft].Side := asrLeft;
+      SetAnchorSide(FBtnAdd, akLeft, Self, asrLeft);
       FBtnAdd.Anchors := [akLeft, akBottom];
     end
     else
     begin
-      FBtnAdd.AnchorSide[akRight].Control := Self;
-      FBtnAdd.AnchorSide[akRight].Side := asrRight;
+      SetAnchorSide(FBtnAdd, akRight, Self, asrRight);
       FBtnAdd.Anchors := [akRight, akBottom];
     end;
     FBtnAdd.Constraints.MinHeight := 0;
@@ -1975,14 +1943,12 @@ begin
     // Scroll-Next: just above Add, full strip width
     if (FTabPosition = etpLeft) then
     begin
-      FBtnScrollNext.AnchorSide[akLeft].Control := Self;
-      FBtnScrollNext.AnchorSide[akLeft].Side := asrLeft;
+      SetAnchorSide(FBtnScrollNext, akLeft, Self, asrLeft);
       FBtnScrollNext.Anchors := [akLeft, akBottom];
     end
     else
     begin
-      FBtnScrollNext.AnchorSide[akRight].Control := Self;
-      FBtnScrollNext.AnchorSide[akRight].Side := asrRight;
+      SetAnchorSide(FBtnScrollNext, akRight, Self, asrRight);
       FBtnScrollNext.Anchors := [akRight, akBottom];
     end;
     FBtnScrollNext.Constraints.MinHeight := 0;
@@ -3833,9 +3799,6 @@ begin
     FTabs[i].FTextHeight := -1;
   end;
 
-  // Reset image caches: tab images and button glyphs are sized for the old DPI
-  InvalidateTabImageCaches;
-
   // Re-fetch the proper resolutions from the external image list
   PrepareInternalTabImages(GetRotationForPosition);
 
@@ -4283,5 +4246,8 @@ begin
 
   inherited Destroy;
 end;
+
+initialization
+  {$I ExtTabCtrl.lrs}
 
 end.
