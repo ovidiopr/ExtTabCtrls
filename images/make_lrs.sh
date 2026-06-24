@@ -1,0 +1,1 @@
+lazres ../component/ExtTabCtrl.lrs TExtTabCtrl.png TExtTabCtrl_150.png TExtTabCtrl_200.png
