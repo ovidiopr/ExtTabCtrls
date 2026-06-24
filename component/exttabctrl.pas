@@ -7,7 +7,7 @@ interface
 uses
   Classes, SysUtils, Controls, FPImage, GraphType, Graphics, Buttons, LCLType, Types, Math,
   LResources, LCLIntf, GraphUtil, ImgList, LMessages, Forms, Menus,
-  IntfGraphics{$IFDEF LCLDesign}, PropEdits{$ENDIF};
+  IntfGraphics, LazMethodList{$IFDEF LCLDesign}, PropEdits{$ENDIF};
 
 type
   TExtTabPosition = (etpTop, etpBottom, etpLeft, etpRight);
@@ -1672,7 +1672,7 @@ end;
 
 procedure TExtTabCtrl.SetOnDrawTab(AValue: TTabDrawEvent);
 begin
-  if (AValue <> FOnDrawTab) then
+  if not SameMethod(TMethod(AValue), TMethod(FOnDrawTab)) then
   begin
     FOnDrawTab := AValue;
     Invalidate;
@@ -1681,7 +1681,7 @@ end;
 
 procedure TExtTabCtrl.SetOnDrawButton(AValue: TButtonDrawEvent);
 begin
-  if AValue <> FOnDrawButton then
+  if not SameMethod(TMethod(AValue), TMethod(FOnDrawButton)) then
   begin
     FOnDrawButton := AValue;
     // Close button is drawn directly on the tab-strip canvas
