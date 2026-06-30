@@ -1,12 +1,12 @@
 object Form1: TForm1
-  Left = 696
+  Left = 629
   Height = 268
-  Top = 1374
+  Top = 262
   Width = 326
   Caption = 'Form1'
   ClientHeight = 268
   ClientWidth = 326
-  LCLVersion = '4.8.0.0'
+  LCLVersion = '4.6.0.0'
   OnCreate = FormCreate
   object ExtPageCtrl1: TExtPageCtrl
     Left = 0
@@ -41,7 +41,7 @@ object Form1: TForm1
       Caption = 'ExtPage1'
       object RadioGroup1: TRadioGroup
         Left = 0
-        Height = 99
+        Height = 96
         Top = 0
         Width = 326
         Align = alTop
@@ -55,8 +55,8 @@ object Form1: TForm1
         ChildSizing.ShrinkVertical = crsScaleChilds
         ChildSizing.Layout = cclLeftToRightThenTopToBottom
         ChildSizing.ControlsPerLine = 1
-        ClientHeight = 72
-        ClientWidth = 316
+        ClientHeight = 76
+        ClientWidth = 322
         ItemIndex = 0
         Items.Strings = (
           'etpTop'
