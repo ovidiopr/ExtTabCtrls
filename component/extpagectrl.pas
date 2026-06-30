@@ -12,7 +12,7 @@ uses
 type
   TExtPageCtrl = class;
 
-  TExtPage = class(TPage)
+  TExtPage = class(TCustomControl)
   private
     FPageCtrl: TExtPageCtrl;
     FTab: TExtTab;
@@ -54,12 +54,21 @@ type
     property ShowCloseButton: Boolean read FShowCloseButton write SetShowCloseButton default True;
 
     property Color;
+    property Align;
+    property BorderWidth;
+    property ChildSizing;
+    property Enabled;
     property Font;
-    property OnBeforeShow;
+    property ParentColor default True;
+    property ParentFont;
+    property ParentShowHint;
+    property PopupMenu;
+    property ShowHint;
+    property Visible;
   end;
 
-  TExtPageNotifyEvent = procedure(Sender: TObject; APage: TPage) of object;
-  TExtPageDeletingEvent = procedure(Sender: TObject; APage: TPage) of object;
+  TExtPageNotifyEvent = procedure(Sender: TObject; APage: TExtPage) of object;
+  TExtPageDeletingEvent = procedure(Sender: TObject; APage: TExtPage) of object;
 
   TExtPageCtrl = class(TExtTabCtrl)
   private
@@ -102,10 +111,8 @@ type
     function GetOnTabDeleting: TTabIndexAllowEvent;
     procedure SetOnTabDeleted(AValue: TNotifyEvent);
     function GetOnTabDeleted: TNotifyEvent;
-
   protected
     procedure SetTabIndex(AValue: Integer); override;
-    procedure SetDesignTabIndex(AValue: Integer); override;
     procedure NormalizeState; override;
     procedure Loaded; override;
     procedure Resize; override;
@@ -113,19 +120,19 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
 
     class function GetControlClassDefaultSize: TSize; override;
-    procedure CalculatePreferredSize(var PreferredWidth, PreferredHeight: Integer;
-      WithImplicitConstraints: Boolean); override;
+    procedure CalculatePreferredSize(var PreferredWidth, PreferredHeight: Integer; WithImplicitConstraints: Boolean); override;
 
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     procedure GetChildren(Proc: TGetChildProc; Root: TComponent); override;
     procedure ShowControl(AControl: TControl); override;
-    procedure InsertControl(AControl: TControl; Index: Integer); override;
-
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
     procedure EndUpdate; override;
+
+    procedure SetDesignTabIndex(AValue: Integer); override;
+    procedure InsertControl(AControl: TControl; Index: Integer); override;
 
     function AddPage(const ACaption: String): TExtPage; virtual;
     procedure DeletePage(Index: Integer); virtual;
@@ -443,8 +450,7 @@ begin
     FUserOnTabReordered(Sender, OldIndex, NewIndex);
 end;
 
-procedure TExtPageCtrl.InternalTabDeleting(Sender: TObject; Index: Integer;
-  var Allow: Boolean);
+procedure TExtPageCtrl.InternalTabDeleting(Sender: TObject; Index: Integer; var Allow: Boolean);
 var
   DyingPage: TExtPage;
 begin

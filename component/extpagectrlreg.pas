@@ -19,8 +19,8 @@ type
   private
     FHook: TPropertyEditorHook;
 
-    procedure PageAdded(Sender: TObject; APage: TPage);
-    procedure PageDeleting(Sender: TObject; APage: TPage);
+    procedure PageAdded(Sender: TObject; APage: TExtPage);
+    procedure PageDeleting(Sender: TObject; APage: TExtPage);
 
     function PageCtrl: TExtPageCtrl;
 
@@ -34,8 +34,7 @@ type
     procedure ExecuteVerb(Index: Integer); override;
   end;
 
-constructor TExtPageCtrlEditor.Create(AComponent: TComponent;
-  ADesigner: TComponentEditorDesigner);
+constructor TExtPageCtrlEditor.Create(AComponent: TComponent; ADesigner: TComponentEditorDesigner);
 begin
   inherited Create(AComponent, ADesigner);
 
@@ -60,7 +59,7 @@ begin
   Result := GetComponent as TExtPageCtrl;
 end;
 
-procedure TExtPageCtrlEditor.PageAdded(Sender: TObject; APage: TPage);
+procedure TExtPageCtrlEditor.PageAdded(Sender: TObject; APage: TExtPage);
 var
   NewName: String;
 begin
@@ -79,7 +78,7 @@ begin
   Modified;
 end;
 
-procedure TExtPageCtrlEditor.PageDeleting(Sender: TObject; APage: TPage);
+procedure TExtPageCtrlEditor.PageDeleting(Sender: TObject; APage: TExtPage);
 begin
   // Unregister the page from the designer before it is freed
   if Assigned(FHook) then
