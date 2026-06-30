@@ -25,7 +25,8 @@
     </RunParams>
     <RequiredPackages>
       <Item>
-        <PackageName Value="TExtTabCtrl"/>
+        <PackageName Value="ExtTabCtrls"/>
+        <MaxVersion Major="1" Minor="2"/>
       </Item>
       <Item>
         <PackageName Value="LCL"/>

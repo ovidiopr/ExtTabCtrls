@@ -140,7 +140,7 @@ end;
 
 procedure Register;
 begin
-  RegisterComponents('Common Controls', [TExtTabCtrl]);
+  RegisterComponents('Misc', [TExtTabCtrl]);
   RegisterComponentEditor(TExtTabCtrl, TExtTabCtrlEditor);
 
   // Register the custom property editor so that changing TabIndex in the

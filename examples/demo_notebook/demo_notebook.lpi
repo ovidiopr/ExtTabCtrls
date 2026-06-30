@@ -26,7 +26,7 @@
     </RunParams>
     <RequiredPackages>
       <Item>
-        <PackageName Value="TExtTabCtrl"/>
+        <PackageName Value="ExtTabCtrls"/>
       </Item>
       <Item>
         <PackageName Value="LCL"/>

@@ -2,7 +2,7 @@
 <CONFIG>
   <Package Version="5">
     <PathDelim Value="\"/>
-    <Name Value="TExtTabCtrl"/>
+    <Name Value="ExtTabCtrls"/>
     <Type Value="RunAndDesignTime"/>
     <Author Value="Ovidio Y. Peña Rodríguez"/>
     <CompilerOptions>
@@ -19,12 +19,12 @@
       </Other>
     </CompilerOptions>
     <Description Value="A feature-rich custom tab control for Lazarus including Chrome, MacOS, and Delphi styles with drag-reordering and vertical orientation support."/>
-    <License Value="This component is released under the GNU General Public License v2 or later (GPL-2.0-or-later).
+    <License Value="This component is released under the GNU Lesser General Public License v2.1 or later (LGPL-2.1-or-later).
 
-You are free to use, study, modify, and redistribute it under the terms of the GPL. If you distribute a modified version, you must do so under the same license.
+You are free to use, study, modify, and redistribute it under the terms of the LGPL. If you distribute a modified version of this library component, you must do so under the same license.
 
-See https://www.gnu.org/licenses/gpl-2.0.html for the full license text."/>
-    <Version Major="1" Minor="2"/>
+See https://www.gnu.org/licenses/lgpl-2.1.html for the full license text."/>
+    <Version Major="1" Minor="3"/>
     <Files>
       <Item>
         <Filename Value="exttabctrlreg.pas"/>

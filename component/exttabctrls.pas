@@ -1,0 +1,23 @@
+{ This file was automatically created by Lazarus. Do not edit!
+  This source is only used to compile and install the package.
+ }
+
+unit ExtTabCtrls;
+
+{$warn 5023 off : no warning about unused units}
+interface
+
+uses
+  ExtTabCtrlReg, ExtPageCtrlReg, LazarusPackageIntf;
+
+implementation
+
+procedure Register;
+begin
+  RegisterUnit('ExtTabCtrlReg', @ExtTabCtrlReg.Register);
+  RegisterUnit('ExtPageCtrlReg', @ExtPageCtrlReg.Register);
+end;
+
+initialization
+  RegisterPackage('ExtTabCtrls', @Register);
+end.

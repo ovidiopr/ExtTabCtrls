@@ -222,7 +222,7 @@ end;
 
 procedure Register;
 begin
-  RegisterComponents('Common Controls', [TExtPageCtrl]);
+  RegisterComponents('Misc', [TExtPageCtrl]);
   RegisterNoIcon([TExtPage]);
   RegisterComponentEditor(TExtPageCtrl, TExtPageCtrlEditor);
 
