@@ -1,12 +1,12 @@
 object Form1: TForm1
   Left = 629
   Height = 268
-  Top = 262
+  Top = 138
   Width = 326
   Caption = 'Form1'
   ClientHeight = 268
   ClientWidth = 326
-  LCLVersion = '4.6.0.0'
+  LCLVersion = '4.8.0.0'
   OnCreate = FormCreate
   object ExtPageCtrl1: TExtPageCtrl
     Left = 0
@@ -18,6 +18,7 @@ object Form1: TForm1
     Tabs = <    
       item
         Caption = 'Position'
+        Color = clDefault
         ShowCloseButton = False
       end    
       item
@@ -38,12 +39,13 @@ object Form1: TForm1
     ButtonImageIndexes.CloseIndex = 3
     PageIndex = 0
     object ExtPage1: TExtPage
-      Caption = 'ExtPage1'
+      Caption = 'Position'
+      ParentColor = False
       object RadioGroup1: TRadioGroup
         Left = 0
-        Height = 96
+        Height = 99
         Top = 0
-        Width = 326
+        Width = 324
         Align = alTop
         AutoFill = True
         AutoSize = True
@@ -55,8 +57,8 @@ object Form1: TForm1
         ChildSizing.ShrinkVertical = crsScaleChilds
         ChildSizing.Layout = cclLeftToRightThenTopToBottom
         ChildSizing.ControlsPerLine = 1
-        ClientHeight = 76
-        ClientWidth = 322
+        ClientHeight = 72
+        ClientWidth = 314
         ItemIndex = 0
         Items.Strings = (
           'etpTop'
@@ -64,17 +66,18 @@ object Form1: TForm1
           'etpLeft'
           'etpRight'
         )
+        ParentBackground = False
         TabOrder = 0
         OnClick = RadioGroup1Click
       end
     end
     object ExtPage2: TExtPage
-      Caption = 'ExtPage2'
+      Caption = 'Style'
       object RadioGroup2: TRadioGroup
         Left = 0
         Height = 117
         Top = 0
-        Width = 326
+        Width = 324
         Align = alTop
         AutoFill = True
         AutoSize = True
@@ -86,8 +89,8 @@ object Form1: TForm1
         ChildSizing.ShrinkVertical = crsScaleChilds
         ChildSizing.Layout = cclLeftToRightThenTopToBottom
         ChildSizing.ControlsPerLine = 1
-        ClientHeight = 117
-        ClientWidth = 326
+        ClientHeight = 90
+        ClientWidth = 314
         ItemIndex = 0
         Items.Strings = (
           'etsFlat'
@@ -101,7 +104,7 @@ object Form1: TForm1
       end
     end
     object ExtPage3: TExtPage
-      Caption = 'ExtPage3'
+      Caption = 'Options'
       ShowCloseButton = False
       object cbShowNewTabBtn: TCheckBox
         AnchorSideLeft.Control = ExtPage3

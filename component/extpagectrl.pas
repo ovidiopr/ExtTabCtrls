@@ -34,7 +34,7 @@ type
     procedure SetShowCloseButton(AValue: Boolean);
     procedure FontOptionsChanged(Sender: TObject);
   protected
-    // Intercept caption and colour changes so the paired tab stays in sync
+    // Intercept caption and color changes so the paired tab stays in sync
     procedure CMTextChanged(var Message: TLMessage); message CM_TEXTCHANGED;
     procedure CMColorChanged(var Message: TLMessage); message CM_COLORCHANGED;
   public
@@ -43,6 +43,13 @@ type
 
     property Tab: TExtTab read FTab;
   published
+    property Left stored False;
+    property Top stored False;
+    property Width stored False;
+    property Height stored False;
+    property Align stored False;
+    property Visible stored False;
+
     property Caption;
     property StripeColor: TColor read FStripeColor write SetStripeColor default clNone;
     property TabVisible: Boolean read GetTabVisible write SetTabVisible default True;
@@ -54,7 +61,6 @@ type
     property ShowCloseButton: Boolean read FShowCloseButton write SetShowCloseButton default True;
 
     property Color;
-    property Align;
     property BorderWidth;
     property ChildSizing;
     property Enabled;
@@ -64,7 +70,6 @@ type
     property ParentShowHint;
     property PopupMenu;
     property ShowHint;
-    property Visible;
   end;
 
   TExtPageNotifyEvent = procedure(Sender: TObject; APage: TExtPage) of object;
@@ -282,15 +287,15 @@ end;
 
 function TExtPageCtrl.GetUniquePageName: String;
 var
-  I: Integer;
+  i: Integer;
   CompOwner: TComponent;
 begin
   CompOwner := Owner;
   if CompOwner = nil then CompOwner := Self;
-  I := 1;
+  i := 1;
   repeat
-    Result := 'ExtPage' + IntToStr(I);
-    Inc(I);
+    Result := 'ExtPage' + IntToStr(i);
+    Inc(i);
   until CompOwner.FindComponent(Result) = nil;
 end;
 
@@ -543,7 +548,7 @@ begin
     NewPage.Visible := False;
     NewPage.ControlStyle := NewPage.ControlStyle + [csNoDesignVisible];
 
-    NewTab.Caption := ACaption;
+    NewPage.Caption := ACaption;
 
     if FPageList.IndexOf(NewPage) < 0 then
       FPageList.Add(NewPage);
@@ -620,9 +625,7 @@ end;
 
 procedure TExtPageCtrl.InsertControl(AControl: TControl; Index: Integer);
 begin
-  if (AControl is TExtPage) or
-     not Assigned(FPageList) or
-     (csLoading in ComponentState) then
+  if (AControl is TExtPage) or not Assigned(FPageList) or (csLoading in ComponentState) then
     inherited InsertControl(AControl, Index)
   else if Assigned(ActivePage) then
     AControl.Parent := ActivePage

@@ -5,8 +5,8 @@ unit ExtPageCtrlReg;
 interface
 
 uses
-  Classes, SysUtils, ExtCtrls, ComponentEditors, PropEdits, PropEditUtils,
-  ExtTabCtrl, ExtPageCtrl;
+  Classes, SysUtils, ExtCtrls, Controls, ComponentEditors, PropEdits,
+  PropEditUtils, ExtTabCtrl, ExtPageCtrl;
 
 procedure Register;
 
@@ -63,7 +63,7 @@ procedure TExtPageCtrlEditor.PageAdded(Sender: TObject; APage: TExtPage);
 var
   NewName: String;
 begin
-  // Give the TPage a unique, valid component name so the IDE can stream it
+  // Give the page a unique component name so the IDE can stream it
   if Assigned(GetDesigner) then
     NewName := GetDesigner.CreateUniqueComponentName(APage.ClassName)
   else
@@ -97,7 +97,7 @@ begin
   if Assigned(GlobalDesignHook) then
   begin
     GlobalDesignHook.RefreshPropertyValues;
-    GlobalDesignHook.SelectOnlyThis(PC.Tabs[NewIdx]);
+    GlobalDesignHook.SelectOnlyThis(PC);
   end;
 end;
 
@@ -135,7 +135,7 @@ begin
   case Index of
     0: // Add Page
       begin
-        PC.AddTab('New Page ' + IntToStr(PC.Tabs.Count + 1));
+        PC.AddPage('New Page ' + IntToStr(PC.Tabs.Count + 1));
         Designer.Modified;
         Designer.SelectOnlyThisComponent(PC);
       end;
@@ -144,7 +144,7 @@ begin
       begin
         if (TargetIndex >= 0) and (TargetIndex < PC.Tabs.Count) then
         begin
-          PC.DeleteTab(TargetIndex);
+          PC.DeletePage(TargetIndex);
           Designer.Modified;
           Designer.SelectOnlyThisComponent(PC);
         end;
@@ -227,8 +227,14 @@ begin
   RegisterComponentEditor(TExtPageCtrl, TExtPageCtrlEditor);
 
   RegisterPropertyEditor(TypeInfo(Integer), TExtPageCtrl, 'PageIndex', TPageIndexPropertyEditor);
-  // Hide the inherited TabIndex property
+  // Hide the inherited properties that we don't need
   RegisterPropertyEditor(TypeInfo(Integer), TExtPageCtrl, 'TabIndex', THiddenPropertyEditor);
+  RegisterPropertyEditor(TypeInfo(Integer), TExtPage, 'Left', THiddenPropertyEditor);
+  RegisterPropertyEditor(TypeInfo(Integer), TExtPage, 'Top', THiddenPropertyEditor);
+  RegisterPropertyEditor(TypeInfo(Integer), TExtPage, 'Width', THiddenPropertyEditor);
+  RegisterPropertyEditor(TypeInfo(Integer), TExtPage, 'Height', THiddenPropertyEditor);
+  RegisterPropertyEditor(TypeInfo(Boolean), TExtPage, 'Visible', THiddenPropertyEditor);
+  RegisterPropertyEditor(TypeInfo(TAlign), TExtPage, 'Align', THiddenPropertyEditor);
 end;
 
 end.
