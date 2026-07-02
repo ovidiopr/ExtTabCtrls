@@ -42,8 +42,6 @@ object Form1: TForm1
     ButtonImageIndexes.CloseIndex = 3
     PageIndex = 0
     object ExtPage1: TExtPage
-      Color = clNone
-      ParentColor = False
       object RadioGroup1: TRadioGroup
         Left = 0
         Height = 99

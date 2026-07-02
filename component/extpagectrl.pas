@@ -20,8 +20,6 @@ type
   private
     FPageCtrl: TExtPageCtrl;
     FTab: TExtTab;
-    FValue: String;
-    FPageHint: String;
     FSyncingFromTab: Boolean;
 
     FOnBeforeShow: TBeforeShowExtPageEvent;
@@ -51,11 +49,6 @@ type
 
     property Tab: TExtTab read FTab stored False;
 
-    property Value: String read FValue write FValue;
-    property PageHint: String read FPageHint write FPageHint;
-
-    property OnBeforeShow: TBeforeShowExtPageEvent read FOnBeforeShow write FOnBeforeShow;
-
     property Color;
     property ChildSizing;
     property Enabled;
@@ -65,6 +58,8 @@ type
     property ParentShowHint;
     property PopupMenu;
     property ShowHint;
+
+    property OnBeforeShow: TBeforeShowExtPageEvent read FOnBeforeShow write FOnBeforeShow;
   end;
 
   TExtPageNotifyEvent = procedure(Sender: TObject; APage: TExtPage) of object;
@@ -183,14 +178,14 @@ procedure TExtPage.CMColorChanged(var Message: TLMessage);
 begin
   inherited;
 
-  if (not FSyncingFromTab) and Assigned(FTab) then
+  if (not FSyncingFromTab) and Assigned(FTab) and (not ParentColor) then
     FTab.Color := Color;
 end;
 
 function TExtPage.GetPageIndex: Integer;
 begin
-  if Parent is TExtPageCtrl then
-    Result := TExtPageCtrl(Parent).FPageList.IndexOf(Self)
+  if Assigned(FPageCtrl) then
+    Result := FPageCtrl.IndexOfPage(Self)
   else
     Result := -1;
 end;
@@ -205,13 +200,13 @@ begin
   if not Assigned(FTab) then Exit;
 
   SyncToTab;
-  FTab.OnChange := @TabChanged;
+  FTab.InternalOnChange := @TabChanged;
 end;
 
 procedure TExtPage.UnlinkTab;
 begin
   if not Assigned(FTab) then Exit;
-  FTab.OnChange := nil;
+  FTab.InternalOnChange := nil;
   FTab := nil;
 end;
 
@@ -227,6 +222,7 @@ end;
 procedure TExtPage.TabChanged(Sender: TObject);
 begin
   if not Assigned(FTab) then Exit;
+  if ParentColor then Exit;
   if Color = FTab.Color then Exit;
   FSyncingFromTab := True;
   try

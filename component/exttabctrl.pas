@@ -147,6 +147,7 @@ type
     FTextWidth: Integer;
     FTextHeight: Integer;
     FOnChange: TNotifyEvent;
+    FInternalOnChange: TNotifyEvent;
     procedure SetCaption(AValue: TCaption);
     procedure SetColor(AValue: TColor);
     procedure SetStripeColor(AValue: TColor);
@@ -168,6 +169,7 @@ type
 
     property BoundRect: TRect read FBoundRect;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
+    property InternalOnChange: TNotifyEvent read FInternalOnChange write FInternalOnChange;
   published
     property Caption: TCaption read FCaption write SetCaption;
     property Color: TColor read FColor write SetColor default clNone;
@@ -900,6 +902,7 @@ end;
 procedure TExtTab.DoChange;
 begin
   if Assigned(FOnChange) then FOnChange(Self);
+  if Assigned(FInternalOnChange) then FInternalOnChange(Self);
 end;
 
 procedure TExtTab.SetCaption(AValue: TCaption);
