@@ -826,6 +826,9 @@ procedure TExtPageCtrl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y:
 var
   Idx: Integer;
 begin
+  // Hit-test before calling inherited (tabs can be scrolled there)
+  Idx := TabAtPos(X, Y);
+
   inherited MouseDown(Button, Shift, X, Y);
 
   if (csDesigning in ComponentState) then
@@ -842,7 +845,6 @@ begin
           GlobalDesignHook.SelectOnlyThis(Self);
       end;
       mbLeft: begin
-        Idx := TabAtPos(X, Y);
         if (Idx >= 0) and Assigned(GlobalDesignHook) and Assigned(Page[Idx]) then
           GlobalDesignHook.SelectOnlyThis(Page[Idx]);
       end;
