@@ -180,6 +180,7 @@ begin
   RegisterPropertyEditor(TypeInfo(Integer), TExtPageCtrl, 'PageIndex', TPageIndexPropertyEditor);
   // Hide the inherited properties that we don't need
   RegisterPropertyEditor(TypeInfo(Integer), TExtPageCtrl, 'TabIndex', THiddenPropertyEditor);
+  RegisterPropertyEditor(TypeInfo(TExtTabs), TExtPageCtrl, 'Tabs', THiddenPropertyEditor);
   RegisterPropertyEditor(TypeInfo(Integer), TExtPage, 'Left', THiddenPropertyEditor);
   RegisterPropertyEditor(TypeInfo(Integer), TExtPage, 'Top', THiddenPropertyEditor);
   RegisterPropertyEditor(TypeInfo(Integer), TExtPage, 'Width', THiddenPropertyEditor);
