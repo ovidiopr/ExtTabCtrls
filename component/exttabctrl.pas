@@ -557,33 +557,88 @@ end;
 procedure RotateImage(Img: TCustomBitmap; Degrees: Integer);
 var
   SrcIntf, DestIntf: TLazIntfImage;
-  x, y: Integer;
+  x, y, BPP: Integer;
+  SrcPtr, DestPtr: PByte;
+  SrcW, SrcH, DestW, DestH: Integer;
+  SrcRows, DestRows: array of PByte;
 begin
-  if Img.Empty then Exit;
+  if Img.Empty or not ((Degrees = 90) or (Degrees = 180) or (Degrees = 270)) then Exit;
   SrcIntf := Img.CreateIntfImage;
   DestIntf := TLazIntfImage.Create(0, 0);
   try
     DestIntf.DataDescription := SrcIntf.DataDescription;
+    SrcW := SrcIntf.Width;
+    SrcH := SrcIntf.Height;
     if (Degrees = 90) or (Degrees = 270) then
-      DestIntf.SetSize(SrcIntf.Height, SrcIntf.Width)
+      DestIntf.SetSize(SrcH, SrcW)
     else
-      DestIntf.SetSize(SrcIntf.Width, SrcIntf.Height);
+      DestIntf.SetSize(SrcW, SrcH);
+    DestW := DestIntf.Width;
+    DestH := DestIntf.Height;
+    BPP := SrcIntf.DataDescription.BitsPerPixel div 8;
 
-    case Degrees of
-      270: // 90° clockwise: src(x,y) --> dest(Height-1-y, x)
-        for y := 0 to SrcIntf.Height - 1 do
-          for x := 0 to SrcIntf.Width - 1 do
-            DestIntf.Colors[SrcIntf.Height - 1 - y, x] := SrcIntf.Colors[x, y];
-      180:
-        for y := 0 to SrcIntf.Height - 1 do
-          for x := 0 to SrcIntf.Width - 1 do
-            DestIntf.Colors[SrcIntf.Width - 1 - x, SrcIntf.Height - 1 - y] := SrcIntf.Colors[x, y];
-      90: // 270° clockwise (= 90° CCW): src(x,y) --> dest(y, Width-1-x)
-        for y := 0 to SrcIntf.Height - 1 do
-          for x := 0 to SrcIntf.Width - 1 do
-            DestIntf.Colors[y, SrcIntf.Width - 1 - x] := SrcIntf.Colors[x, y];
+    // Direct memory copy for byte-aligned 24/32-bit formats
+    if (SrcIntf.DataDescription.BitsPerPixel mod 8 = 0) and (BPP in [3, 4]) then
+    begin
+      SetLength(SrcRows, SrcH);
+      for y := 0 to SrcH - 1 do
+        SrcRows[y] := SrcIntf.GetDataLineStart(y);
+      SetLength(DestRows, DestH);
+      for y := 0 to DestH - 1 do
+        DestRows[y] := DestIntf.GetDataLineStart(y);
+
+      case Degrees of
+        270: // 90° clockwise: src(x,y) --> dest(row=x, col=DestW-1-y)
+          for x := 0 to SrcW - 1 do
+          begin
+            DestPtr := DestRows[x] + (DestW - 1) * BPP;
+            for y := 0 to SrcH - 1 do
+            begin
+              Move((SrcRows[y] + x * BPP)^, DestPtr^, BPP);
+              Dec(DestPtr, BPP);
+            end;
+          end;
+        180: // src(x,y) --> dest(row=DestH-1-y, col=DestW-1-x)
+          for y := 0 to SrcH - 1 do
+          begin
+            SrcPtr := SrcRows[y];
+            DestPtr := DestRows[DestH - 1 - y] + (DestW - 1) * BPP;
+            for x := 0 to SrcW - 1 do
+            begin
+              Move(SrcPtr^, DestPtr^, BPP);
+              Inc(SrcPtr, BPP);
+              Dec(DestPtr, BPP);
+            end;
+          end;
+        90: // 270° clockwise (= 90° CCW): src(x,y) --> dest(row=DestH-1-x, col=y)
+          for x := 0 to SrcW - 1 do
+          begin
+            DestPtr := DestRows[DestH - 1 - x];
+            for y := 0 to SrcH - 1 do
+            begin
+              Move((SrcRows[y] + x * BPP)^, DestPtr^, BPP);
+              Inc(DestPtr, BPP);
+            end;
+          end;
+      end;
+    end
     else
-      DestIntf.Assign(SrcIntf);
+    begin
+      // Safe (but slower) rotation for 1/4/8-bit etc
+      case Degrees of
+        270:
+          for y := 0 to SrcH - 1 do
+            for x := 0 to SrcW - 1 do
+              DestIntf.Colors[SrcH - 1 - y, x] := SrcIntf.Colors[x, y];
+        180:
+          for y := 0 to SrcH - 1 do
+            for x := 0 to SrcW - 1 do
+              DestIntf.Colors[SrcW - 1 - x, SrcH - 1 - y] := SrcIntf.Colors[x, y];
+        90:
+          for y := 0 to SrcH - 1 do
+            for x := 0 to SrcW - 1 do
+              DestIntf.Colors[y, SrcW - 1 - x] := SrcIntf.Colors[x, y];
+      end;
     end;
     Img.LoadFromIntfImage(DestIntf);
   finally
