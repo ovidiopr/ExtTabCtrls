@@ -267,23 +267,51 @@ begin
 end;
 
 procedure TExtPage.ReadTabColor(Reader: TReader);
+var
+  ColorValue: Longint;
 begin
-  Tab.Color := TColor(Reader.ReadInteger);
+  if Reader.NextValue = vaIdent then
+  begin
+    if not IdentToColor(Reader.ReadIdent, ColorValue) then
+      ColorValue := clNone;
+    Tab.Color := TColor(ColorValue);
+  end
+  else
+    Tab.Color := TColor(Reader.ReadInteger);
 end;
 
 procedure TExtPage.WriteTabColor(Writer: TWriter);
+var
+  Ident: String;
 begin
-  Writer.WriteInteger(Tab.Color);
+  if ColorToIdent(Tab.Color, Ident) then
+    Writer.WriteIdent(Ident)
+  else
+    Writer.WriteInteger(Tab.Color);
 end;
 
 procedure TExtPage.ReadTabStripeColor(Reader: TReader);
+var
+  ColorValue: Longint;
 begin
-  Tab.StripeColor := TColor(Reader.ReadInteger);
+  if Reader.NextValue = vaIdent then
+  begin
+    if not IdentToColor(Reader.ReadIdent, ColorValue) then
+      ColorValue := clNone;
+    Tab.StripeColor := TColor(ColorValue);
+  end
+  else
+    Tab.StripeColor := TColor(Reader.ReadInteger);
 end;
 
 procedure TExtPage.WriteTabStripeColor(Writer: TWriter);
+var
+  Ident: String;
 begin
-  Writer.WriteInteger(Tab.StripeColor);
+  if ColorToIdent(Tab.StripeColor, Ident) then
+    Writer.WriteIdent(Ident)
+  else
+    Writer.WriteInteger(Tab.StripeColor);
 end;
 
 procedure TExtPage.ReadTabImageIndex(Reader: TReader);
