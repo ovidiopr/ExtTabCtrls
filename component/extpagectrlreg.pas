@@ -58,7 +58,7 @@ var
 
   procedure RebuildDesignerTabTree(Ctrl: TExtPageCtrl; OldIdx, NewIdx: Integer);
   begin
-    Ctrl.Tabs[OldIdx].Index := NewIdx;
+    Ctrl.Page[OldIdx].Tab.Index := NewIdx;
     Ctrl.PageIndex := NewIdx;
 
     Designer.Modified;
@@ -76,7 +76,7 @@ begin
   case Index of
     0: // Add Page
       begin
-        NewPage := PageControl.AddPage('New Page ' + IntToStr(PageControl.Tabs.Count + 1));
+        NewPage := PageControl.AddPage('New Page ' + IntToStr(PageControl.PageCount + 1));
         Designer.Modified;
         if Assigned(NewPage) and Assigned(GlobalDesignHook) then
         begin
@@ -87,7 +87,7 @@ begin
 
     1: // Delete Page
       begin
-        if (TargetIndex >= 0) and (TargetIndex < PageControl.Tabs.Count) then
+        if (TargetIndex >= 0) and (TargetIndex < PageControl.PageCount) then
         begin
           CurrentPage := PageControl.Page[TargetIndex];
           // DeletePersistent removes the node; DeletePage is not needed
@@ -109,7 +109,7 @@ begin
 
     3: // Move Right / Move Down
       begin
-        if (TargetIndex >= 0) and (TargetIndex < PageControl.Tabs.Count - 1) then
+        if (TargetIndex >= 0) and (TargetIndex < PageControl.PageCount - 1) then
           RebuildDesignerTabTree(PageControl, TargetIndex, TargetIndex + 1);
       end;
   end;
@@ -136,8 +136,8 @@ var
   Ctrl: TExtPageCtrl;
 begin
   Ctrl := GetComponent(0) as TExtPageCtrl;
-  if Assigned(Ctrl) and (Ctrl.PageIndex >= 0) and (Ctrl.PageIndex < Ctrl.Tabs.Count) then
-    Result := IntToStr(Ctrl.PageIndex) + ' - ' + Ctrl.Tabs[Ctrl.PageIndex].Caption
+  if Assigned(Ctrl) and (Ctrl.PageIndex >= 0) and (Ctrl.PageIndex < Ctrl.PageCount) then
+    Result := IntToStr(Ctrl.PageIndex) + ' - ' + Ctrl.Page[Ctrl.PageIndex].Tab.Caption
   else
     Result := IntToStr(GetOrdValue);
 end;
@@ -149,8 +149,8 @@ var
 begin
   Ctrl := GetComponent(0) as TExtPageCtrl;
   if not Assigned(Ctrl) then Exit;
-  for i := 0 to Ctrl.Tabs.Count - 1 do
-    Proc(IntToStr(i) + ' - ' + Ctrl.Tabs[i].Caption);
+  for i := 0 to Ctrl.PageCount - 1 do
+    Proc(IntToStr(i) + ' - ' + Ctrl.Page[i].Tab.Caption);
 end;
 
 procedure TPageIndexPropertyEditor.SetValue(const NewValue: String);
@@ -179,8 +179,6 @@ begin
 
   RegisterPropertyEditor(TypeInfo(Integer), TExtPageCtrl, 'PageIndex', TPageIndexPropertyEditor);
   // Hide the inherited properties that we don't need
-  RegisterPropertyEditor(TypeInfo(Integer), TExtPageCtrl, 'TabIndex', THiddenPropertyEditor);
-  RegisterPropertyEditor(TypeInfo(TExtTabs), TExtPageCtrl, 'Tabs', THiddenPropertyEditor);
   RegisterPropertyEditor(TypeInfo(Integer), TExtPage, 'Left', THiddenPropertyEditor);
   RegisterPropertyEditor(TypeInfo(Integer), TExtPage, 'Top', THiddenPropertyEditor);
   RegisterPropertyEditor(TypeInfo(Integer), TExtPage, 'Width', THiddenPropertyEditor);

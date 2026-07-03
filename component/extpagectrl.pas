@@ -14,25 +14,38 @@ type
 
   TBeforeShowExtPageEvent = procedure (ASender: TObject; ANewPage: TExtPage; ANewIndex: Integer) of object;
 
-  TExtPageCtrl = class;
+  TCustomExtPageCtrl = class;
 
   TExtPage = class(TCustomControl)
   private
-    FPageCtrl: TExtPageCtrl;
+    FPageCtrl: TCustomExtPageCtrl;
     FTab: TExtTab;
-    FSyncingFromTab: Boolean;
 
     FOnBeforeShow: TBeforeShowExtPageEvent;
     function GetPageIndex: Integer;
+    function GetTab: TExtTab;
 
     // Connect the Tab with the Page
     procedure LinkTab(ATab: TExtTab);
     procedure UnlinkTab;
-    procedure SyncToTab;
-    procedure TabChanged(Sender: TObject);
+
+    // Low-level (de)serialization of Tab's data
+    procedure ReadTabCaption(Reader: TReader);
+    procedure WriteTabCaption(Writer: TWriter);
+    procedure ReadTabColor(Reader: TReader);
+    procedure WriteTabColor(Writer: TWriter);
+    procedure ReadTabStripeColor(Reader: TReader);
+    procedure WriteTabStripeColor(Writer: TWriter);
+    procedure ReadTabImageIndex(Reader: TReader);
+    procedure WriteTabImageIndex(Writer: TWriter);
+    procedure ReadTabShowCloseButton(Reader: TReader);
+    procedure WriteTabShowCloseButton(Writer: TWriter);
+    procedure ReadTabVisible(Reader: TReader);
+    procedure WriteTabVisible(Writer: TWriter);
+    procedure ReadTabHint(Reader: TReader);
+    procedure WriteTabHint(Writer: TWriter);
   protected
-    // Intercept Color changes so the paired tab stays in sync
-    procedure CMColorChanged(var Message: TLMessage); message CM_COLORCHANGED;
+    procedure DefineProperties(Filer: TFiler); override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -47,7 +60,8 @@ type
     property Visible stored False;
     property Caption stored False;
 
-    property Tab: TExtTab read FTab stored False;
+    // We save it "by hand"
+    property Tab: TExtTab read GetTab stored False;
 
     property Color;
     property ChildSizing;
@@ -65,10 +79,12 @@ type
   TExtPageNotifyEvent = procedure(Sender: TObject; APage: TExtPage) of object;
   TExtPageDeletingEvent = procedure(Sender: TObject; APage: TExtPage) of object;
 
-  TExtPageCtrl = class(TExtTabCtrl)
+  TCustomExtPageCtrl = class(TCustomExtTabCtrl)
   private
     FPageList: TObjectList;
     FPageIndex: Integer;
+    // PageIndex value read from the stream while FPageList is still empty
+    FPendingPageIndex: Integer;
     FIsSyncing: Boolean;
     FInLayout: Boolean;
 
@@ -145,13 +161,64 @@ type
     property OnPageAdded: TExtPageNotifyEvent read FOnPageAdded write FOnPageAdded;
     property OnPageDeleting: TExtPageDeletingEvent read FOnPageDeleting write FOnPageDeleting;
 
-  published
+  protected
     property PageIndex: Integer read GetPageIndex write SetPageIndex default -1;
 
     property OnTabReordered: TTabReorderedEvent read GetOnTabReordered write SetOnTabReordered;
     property OnTabDeleting: TTabIndexAllowEvent read GetOnTabDeleting write SetOnTabDeleting;
     property OnTabDeleted: TNotifyEvent read GetOnTabDeleted write SetOnTabDeleted;
     property OnAddButtonClick: TButtonClickEvent read GetOnAddButtonClick write SetOnAddButtonClick;
+  end;
+
+  { TExtPageCtrl }
+  TExtPageCtrl = class(TCustomExtPageCtrl)
+  published
+    property Align;
+    property AutoSize;
+    property BorderSpacing;
+    property Color;
+    property DoubleBuffered;
+    property TabSize;
+    property TabStyle;
+    property TabOptions;
+    property TabPosition;
+
+    property ShowHint;
+    property Font;
+    property ParentFont;
+    property ParentColor;
+
+    property Images;
+    property ButtonImageIndexes;
+    property ImagesWidth;
+    property ButtonHints;
+    property BorderColor;
+
+    property AddMenu;
+
+    property MinCaptionLen;
+    property MaxCaptionLen;
+
+    property PageIndex;
+
+    property OnTabReordering;
+    property OnTabReordered;
+    property OnTabCreating;
+    property OnTabCreated;
+    property OnTabDeleting;
+    property OnTabDeleted;
+    property OnTabChanging;
+    property OnTabChanged;
+    property OnTabClick;
+    property OnTabDblClick;
+    property OnImportTab;
+    property OnAddButtonClick;
+    property OnGetFocus;
+    property OnLostFocus;
+    property OnMouseEnterTab;
+    property OnMouseLeaveTab;
+    property OnDrawTab;
+    property OnDrawButton;
   end;
 
 implementation
@@ -174,12 +241,97 @@ begin
   inherited Destroy;
 end;
 
-procedure TExtPage.CMColorChanged(var Message: TLMessage);
+procedure TExtPage.DefineProperties(Filer: TFiler);
 begin
-  inherited;
+  inherited DefineProperties(Filer);
 
-  if (not FSyncingFromTab) and Assigned(FTab) and (not ParentColor) then
-    FTab.Color := Color;
+  // Each entry reads/writes as 'Tab.xxx' in the LFM, so it still looks like
+  // a normal nested property even though it's manually (de)serialized
+  Filer.DefineProperty('Tab.Caption', @ReadTabCaption, @WriteTabCaption, True);
+  Filer.DefineProperty('Tab.Color', @ReadTabColor, @WriteTabColor, Tab.Color <> clNone);
+  Filer.DefineProperty('Tab.StripeColor', @ReadTabStripeColor, @WriteTabStripeColor, Tab.StripeColor <> clNone);
+  Filer.DefineProperty('Tab.ImageIndex', @ReadTabImageIndex, @WriteTabImageIndex, Tab.ImageIndex <> -1);
+  Filer.DefineProperty('Tab.ShowCloseButton', @ReadTabShowCloseButton, @WriteTabShowCloseButton, not Tab.ShowCloseButton);
+  Filer.DefineProperty('Tab.Visible', @ReadTabVisible, @WriteTabVisible, not Tab.Visible);
+  Filer.DefineProperty('Tab.Hint', @ReadTabHint, @WriteTabHint, Tab.Hint <> '');
+end;
+
+procedure TExtPage.ReadTabCaption(Reader: TReader);
+begin
+  Tab.Caption := Reader.ReadString;
+end;
+
+procedure TExtPage.WriteTabCaption(Writer: TWriter);
+begin
+  Writer.WriteString(Tab.Caption);
+end;
+
+procedure TExtPage.ReadTabColor(Reader: TReader);
+begin
+  Tab.Color := TColor(Reader.ReadInteger);
+end;
+
+procedure TExtPage.WriteTabColor(Writer: TWriter);
+begin
+  Writer.WriteInteger(Tab.Color);
+end;
+
+procedure TExtPage.ReadTabStripeColor(Reader: TReader);
+begin
+  Tab.StripeColor := TColor(Reader.ReadInteger);
+end;
+
+procedure TExtPage.WriteTabStripeColor(Writer: TWriter);
+begin
+  Writer.WriteInteger(Tab.StripeColor);
+end;
+
+procedure TExtPage.ReadTabImageIndex(Reader: TReader);
+begin
+  Tab.ImageIndex := Reader.ReadInteger;
+end;
+
+procedure TExtPage.WriteTabImageIndex(Writer: TWriter);
+begin
+  Writer.WriteInteger(Tab.ImageIndex);
+end;
+
+procedure TExtPage.ReadTabShowCloseButton(Reader: TReader);
+begin
+  Tab.ShowCloseButton := Reader.ReadBoolean;
+end;
+
+procedure TExtPage.WriteTabShowCloseButton(Writer: TWriter);
+begin
+  Writer.WriteBoolean(Tab.ShowCloseButton);
+end;
+
+procedure TExtPage.ReadTabVisible(Reader: TReader);
+begin
+  Tab.Visible := Reader.ReadBoolean;
+end;
+
+procedure TExtPage.WriteTabVisible(Writer: TWriter);
+begin
+  Writer.WriteBoolean(Tab.Visible);
+end;
+
+procedure TExtPage.ReadTabHint(Reader: TReader);
+begin
+  Tab.Hint := Reader.ReadString;
+end;
+
+procedure TExtPage.WriteTabHint(Writer: TWriter);
+begin
+  Writer.WriteString(Tab.Hint);
+end;
+
+function TExtPage.GetTab: TExtTab;
+begin
+  // Lazily create the Tab
+  if not Assigned(FTab) then
+    FTab := TExtTab.Create(nil);
+  Result := FTab;
 end;
 
 function TExtPage.GetPageIndex: Integer;
@@ -193,51 +345,52 @@ end;
 { Connect the Tab with the Page }
 
 procedure TExtPage.LinkTab(ATab: TExtTab);
+var
+  OldTab: TExtTab;
 begin
   if FTab = ATab then Exit;
-  UnlinkTab;
-  FTab := ATab;
-  if not Assigned(FTab) then Exit;
 
-  SyncToTab;
-  FTab.InternalOnChange := @TabChanged;
+  OldTab := FTab;
+  FTab := nil;
+
+  if Assigned(OldTab) then
+  begin
+    if OldTab.Collection = nil then
+    begin
+      // OldTab was only a placeholder
+      if Assigned(ATab) then
+      begin
+        ATab.Caption := OldTab.Caption;
+        ATab.Color := OldTab.Color;
+        ATab.StripeColor := OldTab.StripeColor;
+        ATab.ImageIndex := OldTab.ImageIndex;
+        ATab.ShowCloseButton := OldTab.ShowCloseButton;
+        ATab.Visible := OldTab.Visible;
+        ATab.Hint := OldTab.Hint;
+      end;
+      OldTab.Free;
+    end;
+    // else: OldTab was a "real" collection-owned tab
+  end;
+
+  FTab := ATab;
 end;
 
 procedure TExtPage.UnlinkTab;
 begin
   if not Assigned(FTab) then Exit;
-  FTab.InternalOnChange := nil;
+  if FTab.Collection = nil then
+    FTab.Free;
   FTab := nil;
 end;
 
-procedure TExtPage.SyncToTab;
-begin
-  if not Assigned(FTab) then Exit;
+{ TCustomExtPageCtrl }
 
-  // Update if not tracking the parent's color
-  if not ParentColor then
-    FTab.Color := Color;
-end;
-
-procedure TExtPage.TabChanged(Sender: TObject);
-begin
-  if not Assigned(FTab) then Exit;
-  if ParentColor then Exit;
-  if Color = FTab.Color then Exit;
-  FSyncingFromTab := True;
-  try
-    Color := FTab.Color;
-  finally
-    FSyncingFromTab := False;
-  end;
-end;
-
-{ TExtPageCtrl }
-
-constructor TExtPageCtrl.Create(AOwner: TComponent);
+constructor TCustomExtPageCtrl.Create(AOwner: TComponent);
 begin
   FPageList := TObjectList.Create(False);
   FPageIndex := -1;
+  FPendingPageIndex := -1;
 
   inherited Create(AOwner);
 
@@ -251,7 +404,7 @@ begin
   inherited OnTabDeleted := @InternalTabDeleted;
 end;
 
-destructor TExtPageCtrl.Destroy;
+destructor TCustomExtPageCtrl.Destroy;
 begin
   FreeAndNil(FPageList);
   inherited Destroy;
@@ -259,7 +412,7 @@ end;
 
 { Private helpers }
 
-function TExtPageCtrl.GetUniquePageName: String;
+function TCustomExtPageCtrl.GetUniquePageName: String;
 const
   BaseName = 'ExtPage';
 var
@@ -293,7 +446,7 @@ begin
   end;
 end;
 
-function TExtPageCtrl.GetPage(Index: Integer): TExtPage;
+function TCustomExtPageCtrl.GetPage(Index: Integer): TExtPage;
 begin
   if Assigned(FPageList) and (Index >= 0) and (Index < FPageList.Count) then
     Result := TExtPage(FPageList[Index])
@@ -301,7 +454,7 @@ begin
     Result := nil;
 end;
 
-function TExtPageCtrl.GetPageCount: Integer;
+function TCustomExtPageCtrl.GetPageCount: Integer;
 begin
   if Assigned(FPageList) then
     Result := FPageList.Count
@@ -309,21 +462,29 @@ begin
     Result := 0;
 end;
 
-function TExtPageCtrl.GetActivePage: TExtPage;
+function TCustomExtPageCtrl.GetActivePage: TExtPage;
 begin
   Result := GetPage(FPageIndex);
 end;
 
-function TExtPageCtrl.GetPageIndex: Integer;
+function TCustomExtPageCtrl.GetPageIndex: Integer;
 begin
   Result := FPageIndex;
 end;
 
-procedure TExtPageCtrl.SetPageIndex(AValue: Integer);
+procedure TCustomExtPageCtrl.SetPageIndex(AValue: Integer);
 var
   OldPage, NewPage: TExtPage;
 begin
   if not Assigned(FPageList) then Exit;
+
+  if csLoading in ComponentState then
+  begin
+    // Pages haven't been streamed in yet
+    FPendingPageIndex := AValue;
+    Exit;
+  end;
+
   if (AValue < 0) and (FPageIndex < 0) and (FPageList.Count > 0) then
     AValue := 0;
   if AValue >= FPageList.Count then AValue := FPageList.Count - 1;
@@ -367,12 +528,12 @@ begin
   Invalidate;
 end;
 
-procedure TExtPageCtrl.SetPages(AValue: TStrings);
+procedure TCustomExtPageCtrl.SetPages(AValue: TStrings);
 begin
   // Intentional no-op: pages are children, not a string list.
 end;
 
-function TExtPageCtrl.IndexOfPage(APage: TExtPage): Integer;
+function TCustomExtPageCtrl.IndexOfPage(APage: TExtPage): Integer;
 begin
   if Assigned(FPageList) then
     Result := FPageList.IndexOf(APage)
@@ -380,7 +541,7 @@ begin
     Result := -1;
 end;
 
-procedure TExtPageCtrl.LayoutPages;
+procedure TCustomExtPageCtrl.LayoutPages;
 var
   i, B, TBT: Integer;
   P: TExtPage;
@@ -412,7 +573,7 @@ end;
 
 { Internal event handlers }
 
-procedure TExtPageCtrl.InternalAddButtonClick(Sender: TObject);
+procedure TCustomExtPageCtrl.InternalAddButtonClick(Sender: TObject);
 begin
   // If the user assigned a custom handler, call it and let them decide what to do
   if Assigned(FUserOnAddButtonClick) then
@@ -421,7 +582,7 @@ begin
     AddPage('New Page ' + IntToStr(PageCount + 1));
 end;
 
-procedure TExtPageCtrl.InternalTabReordered(Sender: TObject; OldIndex, NewIndex: Integer);
+procedure TCustomExtPageCtrl.InternalTabReordered(Sender: TObject; OldIndex, NewIndex: Integer);
 begin
   // Keep FPageList in sync when the user drag-reorders a tab.
   if Assigned(FPageList) and
@@ -429,14 +590,14 @@ begin
      (NewIndex >= 0) and (NewIndex < FPageList.Count) then
     FPageList.Move(OldIndex, NewIndex);
 
-  FPageIndex := TabIndex;   // TabIndex was updated by TExtTabCtrl already
+  FPageIndex := TabIndex;   // TabIndex was updated by TCustomExtTabCtrl already
 
   // Forward to user handler if one is assigned.
   if Assigned(FUserOnTabReordered) then
     FUserOnTabReordered(Sender, OldIndex, NewIndex);
 end;
 
-procedure TExtPageCtrl.InternalTabDeleting(Sender: TObject; Index: Integer; var Allow: Boolean);
+procedure TCustomExtPageCtrl.InternalTabDeleting(Sender: TObject; Index: Integer; var Allow: Boolean);
 var
   DyingPage: TExtPage;
 begin
@@ -460,58 +621,58 @@ begin
   end;
 end;
 
-procedure TExtPageCtrl.InternalTabDeleted(Sender: TObject);
+procedure TCustomExtPageCtrl.InternalTabDeleted(Sender: TObject);
 begin
-  // The tab has been removed from FTabs by TExtTabCtrl.DeleteTab
+  // The tab has been removed from FTabs by TCustomExtTabCtrl.DeleteTab
   if Assigned(FUserOnTabDeleted) then
     FUserOnTabDeleted(Sender);
 end;
 
 { Forwarding getters/setters for intercepted events }
 
-procedure TExtPageCtrl.SetOnAddButtonClick(AValue: TButtonClickEvent);
+procedure TCustomExtPageCtrl.SetOnAddButtonClick(AValue: TButtonClickEvent);
 begin
   FUserOnAddButtonClick := AValue;
 end;
 
-function TExtPageCtrl.GetOnAddButtonClick: TButtonClickEvent;
+function TCustomExtPageCtrl.GetOnAddButtonClick: TButtonClickEvent;
 begin
   Result := FUserOnAddButtonClick;
 end;
 
-procedure TExtPageCtrl.SetOnTabReordered(AValue: TTabReorderedEvent);
+procedure TCustomExtPageCtrl.SetOnTabReordered(AValue: TTabReorderedEvent);
 begin
   FUserOnTabReordered := AValue;
 end;
 
-function TExtPageCtrl.GetOnTabReordered: TTabReorderedEvent;
+function TCustomExtPageCtrl.GetOnTabReordered: TTabReorderedEvent;
 begin
   Result := FUserOnTabReordered;
 end;
 
-procedure TExtPageCtrl.SetOnTabDeleting(AValue: TTabIndexAllowEvent);
+procedure TCustomExtPageCtrl.SetOnTabDeleting(AValue: TTabIndexAllowEvent);
 begin
   FUserOnTabDeleting := AValue;
 end;
 
-function TExtPageCtrl.GetOnTabDeleting: TTabIndexAllowEvent;
+function TCustomExtPageCtrl.GetOnTabDeleting: TTabIndexAllowEvent;
 begin
   Result := FUserOnTabDeleting;
 end;
 
-procedure TExtPageCtrl.SetOnTabDeleted(AValue: TNotifyEvent);
+procedure TCustomExtPageCtrl.SetOnTabDeleted(AValue: TNotifyEvent);
 begin
   FUserOnTabDeleted := AValue;
 end;
 
-function TExtPageCtrl.GetOnTabDeleted: TNotifyEvent;
+function TCustomExtPageCtrl.GetOnTabDeleted: TNotifyEvent;
 begin
   Result := FUserOnTabDeleted;
 end;
 
 { Core page management }
 
-function TExtPageCtrl.AddPage(const ACaption: String): TExtPage;
+function TCustomExtPageCtrl.AddPage(const ACaption: String): TExtPage;
 var
   NewTab: TExtTab;
   NewPage: TExtPage;
@@ -578,13 +739,13 @@ begin
   Result := NewPage;
 end;
 
-procedure TExtPageCtrl.DeletePage(Index: Integer);
+procedure TCustomExtPageCtrl.DeletePage(Index: Integer);
 begin
   if (Index < 0) or (not Assigned(FPageList)) or (Index >= FPageList.Count) then Exit;
   inherited DeleteTab(Index);
 end;
 
-procedure TExtPageCtrl.MovePage(OldIndex, NewIndex: Integer);
+procedure TCustomExtPageCtrl.MovePage(OldIndex, NewIndex: Integer);
 begin
   if not Assigned(FPageList) then Exit;
   if (OldIndex < 0) or (OldIndex >= FPageList.Count) then Exit;
@@ -605,7 +766,7 @@ end;
 
 { Compatibility shims }
 
-function TExtPageCtrl.AddTab(const ACaption: String; AData: TObject): TExtTab;
+function TCustomExtPageCtrl.AddTab(const ACaption: String; AData: TObject): TExtTab;
 var
   P: TExtPage;
 begin
@@ -619,14 +780,14 @@ begin
     Result := nil;
 end;
 
-procedure TExtPageCtrl.DeleteTab(Index: Integer);
+procedure TCustomExtPageCtrl.DeleteTab(Index: Integer);
 begin
   DeletePage(Index);
 end;
 
 { InsertControl: redirect component drops to the active page }
 
-procedure TExtPageCtrl.InsertControl(AControl: TControl; Index: Integer);
+procedure TCustomExtPageCtrl.InsertControl(AControl: TControl; Index: Integer);
 begin
   if (AControl is TExtPage) or not Assigned(FPageList) or (csLoading in ComponentState) then
     inherited InsertControl(AControl, Index)
@@ -638,7 +799,7 @@ end;
 
 { Streaming/designer integration }
 
-procedure TExtPageCtrl.Notification(AComponent: TComponent; Operation: TOperation);
+procedure TCustomExtPageCtrl.Notification(AComponent: TComponent; Operation: TOperation);
 begin
   inherited Notification(AComponent, Operation);
   // When a TExtPage is freed externally, remove it from our list
@@ -646,7 +807,7 @@ begin
     FPageList.Remove(AComponent);
 end;
 
-procedure TExtPageCtrl.GetChildren(Proc: TGetChildProc; Root: TComponent);
+procedure TCustomExtPageCtrl.GetChildren(Proc: TGetChildProc; Root: TComponent);
 var
   i: Integer;
 begin
@@ -655,7 +816,7 @@ begin
     Proc(TComponent(FPageList[i]));
 end;
 
-procedure TExtPageCtrl.ShowControl(AControl: TControl);
+procedure TCustomExtPageCtrl.ShowControl(AControl: TControl);
 var
   i: Integer;
   Idx: Integer;
@@ -679,19 +840,13 @@ begin
   if (Idx = -1) and (AControl is TExtPage) then
   begin
     StreamedPage := TExtPage(AControl);
-    i := FPageList.Count;
 
-    if Assigned(Tabs) and (i < Tabs.Count) then
-      StreamedPage.LinkTab(Tabs[i])
-    else
-    begin
-      FIsSyncing := True;
-      try
-        NewTab := inherited AddTab(StreamedPage.Name);
-        StreamedPage.LinkTab(NewTab);
-      finally
-        FIsSyncing := False;
-      end;
+    FIsSyncing := True;
+    try
+      NewTab := inherited AddTab(StreamedPage.Name);
+      StreamedPage.LinkTab(NewTab);
+    finally
+      FIsSyncing := False;
     end;
 
     StreamedPage.FPageCtrl := Self;
@@ -706,9 +861,9 @@ begin
   inherited ShowControl(AControl);
 end;
 
-{ TExtTabCtrl virtual overrides }
+{ TCustomExtTabCtrl virtual overrides }
 
-procedure TExtPageCtrl.SetTabIndex(AValue: Integer);
+procedure TCustomExtPageCtrl.SetTabIndex(AValue: Integer);
 begin
   inherited SetTabIndex(AValue);
   if not Assigned(FPageList) then Exit;
@@ -723,7 +878,7 @@ begin
   end;
 end;
 
-procedure TExtPageCtrl.SetDesignTabIndex(AValue: Integer);
+procedure TCustomExtPageCtrl.SetDesignTabIndex(AValue: Integer);
 begin
   inherited SetDesignTabIndex(AValue);
   if not Assigned(FPageList) then Exit;
@@ -738,7 +893,7 @@ begin
   end;
 end;
 
-procedure TExtPageCtrl.NormalizeState;
+procedure TCustomExtPageCtrl.NormalizeState;
 var
   i: Integer;
   Found: Boolean;
@@ -784,45 +939,38 @@ begin
   end;
 end;
 
-procedure TExtPageCtrl.Loaded;
+procedure TCustomExtPageCtrl.Loaded;
 var
   i: Integer;
   P: TExtPage;
-  TabIdx: Integer;
 begin
   inherited Loaded;
 
-  TabIdx := 0;
   for i := 0 to ControlCount - 1 do
     if Controls[i] is TExtPage then
     begin
       P := TExtPage(Controls[i]);
       if FPageList.IndexOf(P) < 0 then
       begin
-        if Assigned(Tabs) and (TabIdx < Tabs.Count) then
-          P.LinkTab(Tabs[TabIdx])
-        else
-        begin
-          FIsSyncing := True;
-          try
-            P.LinkTab(inherited AddTab(P.Name));
-          finally
-            FIsSyncing := False;
-          end;
+        FIsSyncing := True;
+        try
+          P.LinkTab(inherited AddTab(P.Name));
+        finally
+          FIsSyncing := False;
         end;
         P.FPageCtrl := Self;
         P.Visible := False;
         P.ControlStyle := P.ControlStyle + [csNoDesignVisible];
         FPageList.Add(P);
       end;
-      Inc(TabIdx);
     end;
 
-  SetPageIndex(TabIndex);
+  // Apply deferred PageIndex
+  SetPageIndex(FPendingPageIndex);
   LayoutPages;
 end;
 
-procedure TExtPageCtrl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+procedure TCustomExtPageCtrl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   Idx: Integer;
 begin
@@ -853,14 +1001,14 @@ begin
   end;
 end;
 
-class function TExtPageCtrl.GetControlClassDefaultSize: TSize;
+class function TCustomExtPageCtrl.GetControlClassDefaultSize: TSize;
 begin
   // Tab strip (default 26 px) + a comfortable page area
   Result.cx := 300;
   Result.cy := 200;
 end;
 
-procedure TExtPageCtrl.CalculatePreferredSize(var PreferredWidth, PreferredHeight: Integer; WithImplicitConstraints: Boolean);
+procedure TCustomExtPageCtrl.CalculatePreferredSize(var PreferredWidth, PreferredHeight: Integer; WithImplicitConstraints: Boolean);
 var
   i, j: Integer;
   P: TExtPage;
@@ -898,7 +1046,7 @@ begin
     Inc(PreferredWidth, ContentW);
 end;
 
-procedure TExtPageCtrl.Resize;
+procedure TCustomExtPageCtrl.Resize;
 begin
   inherited Resize;
   // Skip layout while a BeginUpdate/EndUpdate transaction is open
@@ -906,7 +1054,7 @@ begin
   LayoutPages;
 end;
 
-procedure TExtPageCtrl.Paint;
+procedure TCustomExtPageCtrl.Paint;
 var
   R: TRect;
 begin
@@ -947,7 +1095,7 @@ begin
   end;
 end;
 
-procedure TExtPageCtrl.EndUpdate;
+procedure TCustomExtPageCtrl.EndUpdate;
 begin
   inherited EndUpdate;
 

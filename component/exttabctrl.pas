@@ -39,18 +39,18 @@ type
   TButtonDrawEvent = procedure(Sender: TObject; ACanvas: TCanvas; ARect: TRect;
     AButtonType: TExtButtonType; ATab: TExtTab; IsActive, IsHover: Boolean; var Skip: Boolean) of object;
 
-  TExtTabCtrl = class;
+  TCustomExtTabCtrl = class;
 
   TExtButtonImageIndexes = class(TPersistent)
   private
-    FOwnerCtrl: TExtTabCtrl;
+    FOwnerCtrl: TCustomExtTabCtrl;
     FImgIndex: array[0..3] of TImageIndex;
     FSavedIndex: Array[0..3] of TImageIndex;
     FOnChange: TNotifyEvent;
     function GetIndex(Index: Integer): TImageIndex;
     procedure SetIndex(Index: Integer; Value: TImageIndex);
   public
-    constructor Create(AOwner: TExtTabCtrl);
+    constructor Create(AOwner: TCustomExtTabCtrl);
     procedure Assign(Source: TPersistent); override;
     procedure Save;
     procedure Restore;
@@ -139,7 +139,7 @@ type
     FValue: String;
     FData: TObject;
     FFontOptions: TExtFontOptions;
-    FOwnerCtrl: TExtTabCtrl;
+    FOwnerCtrl: TCustomExtTabCtrl;
     FImage: TBitmap;
     FImageIndex: TImageIndex;
     FHint: String;
@@ -186,18 +186,18 @@ type
 
   TExtTabs = class(TCollection)
   private
-    FOwnerCtrl: TExtTabCtrl;
+    FOwnerCtrl: TCustomExtTabCtrl;
     function GetItems(Index: Integer): TExtTab;
   protected
     procedure Update(Item: TCollectionItem); override;
     function GetOwner: TPersistent; override;
   public
-    constructor Create(AOwner: TExtTabCtrl);
+    constructor Create(AOwner: TCustomExtTabCtrl);
     function Add(const ACaption: String): TExtTab;
     property Items[Index: Integer]: TExtTab read GetItems; default;
   end;
 
-  TExtTabCtrl = class(TCustomControl)
+  TCustomExtTabCtrl = class(TCustomControl)
   private
     FUpdateCount: Integer;
     FLayoutDirty: Boolean;
@@ -390,7 +390,7 @@ type
     procedure DeleteTab(Index: Integer); virtual;
     procedure ImportFromStrings(Source: TStrings; ClearExisting: Boolean = True); virtual;
     procedure SetDesignTabIndex(AValue: Integer); virtual;
-  published
+  protected
     property Align;
     property AutoSize;
     property BorderSpacing;
@@ -440,6 +440,57 @@ type
     property OnMouseLeaveTab: TTabMouseEvent read FOnMouseLeaveTab write FOnMouseLeaveTab;
     property OnDrawTab: TTabDrawEvent read FOnDrawTab write SetOnDrawTab;
     property OnDrawButton: TButtonDrawEvent read FOnDrawButton write SetOnDrawButton;
+  end;
+
+  { TExtTabCtrl }
+  TExtTabCtrl = class(TCustomExtTabCtrl)
+  published
+    property Align;
+    property AutoSize;
+    property BorderSpacing;
+    property Color;
+    property DoubleBuffered;
+    property Tabs;
+    property TabIndex;
+    property TabSize;
+    property TabStyle;
+    property TabOptions;
+    property TabPosition;
+
+    property ShowHint;
+    property Font;
+    property ParentFont;
+    property ParentColor;
+
+    property Images;
+    property ButtonImageIndexes;
+    property ImagesWidth;
+    property ButtonHints;
+    property BorderColor;
+
+    property AddMenu;
+
+    property MinCaptionLen;
+    property MaxCaptionLen;
+
+    property OnTabReordering;
+    property OnTabReordered;
+    property OnTabCreating;
+    property OnTabCreated;
+    property OnTabDeleting;
+    property OnTabDeleted;
+    property OnTabChanging;
+    property OnTabChanged;
+    property OnTabClick;
+    property OnTabDblClick;
+    property OnImportTab;
+    property OnAddButtonClick;
+    property OnGetFocus;
+    property OnLostFocus;
+    property OnMouseEnterTab;
+    property OnMouseLeaveTab;
+    property OnDrawTab;
+    property OnDrawButton;
   end;
 
 implementation
@@ -706,7 +757,7 @@ end;
 // End vector icon helpers
 
 { TExtButtonImageIndexes }
-constructor TExtButtonImageIndexes.Create(AOwner: TExtTabCtrl);
+constructor TExtButtonImageIndexes.Create(AOwner: TCustomExtTabCtrl);
 begin
   FOwnerCtrl := AOwner;
   FillChar(FImgIndex, SizeOf(FImgIndex), $FF);
@@ -1061,7 +1112,10 @@ constructor TExtTab.Create(ACollection: TCollection);
 begin
   inherited Create(ACollection);
 
-  FOwnerCtrl := TExtTabs(ACollection).FOwnerCtrl;
+  if Assigned(ACollection) then
+    FOwnerCtrl := TExtTabs(ACollection).FOwnerCtrl
+  else
+    FOwnerCtrl := nil;
   FFontOptions := TExtFontOptions.Create;
   FFontOptions.OnRedraw := @Redraw;
   FVisible := True;
@@ -1117,7 +1171,7 @@ begin
   Result := FOwnerCtrl;
 end;
 
-constructor TExtTabs.Create(AOwner: TExtTabCtrl);
+constructor TExtTabs.Create(AOwner: TCustomExtTabCtrl);
 begin
   inherited Create(TExtTab);
   FOwnerCtrl := AOwner;
@@ -1129,18 +1183,18 @@ begin
   Result.Caption := ACaption;
 end;
 
-{ TExtTabCtrl }
-procedure TExtTabCtrl.BeginInternalChange;
+{ TCustomExtTabCtrl }
+procedure TCustomExtTabCtrl.BeginInternalChange;
 begin
   Inc(FInternalChange);
 end;
 
-procedure TExtTabCtrl.EndInternalChange;
+procedure TCustomExtTabCtrl.EndInternalChange;
 begin
   if FInternalChange > 0 then Dec(FInternalChange);
 end;
 
-procedure TExtTabCtrl.CancelDrag;
+procedure TCustomExtTabCtrl.CancelDrag;
 begin
   if FDragging then
   begin
@@ -1153,7 +1207,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.NormalizeState;
+procedure TCustomExtTabCtrl.NormalizeState;
 var
   Candidate: Integer;
   View: TRect;
@@ -1209,7 +1263,7 @@ begin
     CancelDrag;
 end;
 
-procedure TExtTabCtrl.SnapScrollOffset;
+procedure TCustomExtTabCtrl.SnapScrollOffset;
 var
   i: Integer;
   R, View: TRect;
@@ -1257,13 +1311,13 @@ begin
 end;
 
 // Set an initial size when dropped onto a form by click
-class function TExtTabCtrl.GetControlClassDefaultSize: TSize;
+class function TCustomExtTabCtrl.GetControlClassDefaultSize: TSize;
 begin
   Result.cx := 300;
   Result.cy := 30;
 end;
 
-function TExtTabCtrl.NextVisibleTab(FromIndex: Integer): Integer;
+function TCustomExtTabCtrl.NextVisibleTab(FromIndex: Integer): Integer;
 var
   i: Integer;
 begin
@@ -1272,7 +1326,7 @@ begin
     if FTabs[i].Visible then Exit(i);
 end;
 
-function TExtTabCtrl.PrevVisibleTab(FromIndex: Integer): Integer;
+function TCustomExtTabCtrl.PrevVisibleTab(FromIndex: Integer): Integer;
 var
   i: Integer;
 begin
@@ -1281,7 +1335,7 @@ begin
     if FTabs[i].Visible then Exit(i);
 end;
 
-procedure TExtTabCtrl.SetTabIndex(AValue: Integer);
+procedure TCustomExtTabCtrl.SetTabIndex(AValue: Integer);
 var
   Allow: Boolean;
   Candidate: Integer;
@@ -1348,7 +1402,7 @@ begin
   Invalidate;
 end;
 
-procedure TExtTabCtrl.SetTabSize(AValue: Integer);
+procedure TCustomExtTabCtrl.SetTabSize(AValue: Integer);
 begin
   if FTabSize <> AValue then
   begin
@@ -1360,12 +1414,12 @@ begin
   end;
 end;
 
-function TExtTabCtrl.IsStoredTabSize: Boolean;
+function TCustomExtTabCtrl.IsStoredTabSize: Boolean;
 begin
   Result := FTabSize <> Scale96ToFont(cDefaultTabSize);
 end;
 
-procedure TExtTabCtrl.AddBtnClick(Sender: TObject);
+procedure TCustomExtTabCtrl.AddBtnClick(Sender: TObject);
 var
   P: TPoint;
 begin
@@ -1390,7 +1444,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.ScrollPrev(Sender: TObject);
+procedure TCustomExtTabCtrl.ScrollPrev(Sender: TObject);
 var
   i: Integer;
   VisibleStart, TabStart, TabEnd: Integer;
@@ -1418,7 +1472,7 @@ begin
   Invalidate;
 end;
 
-procedure TExtTabCtrl.ScrollNext(Sender: TObject);
+procedure TCustomExtTabCtrl.ScrollNext(Sender: TObject);
 var
   i: Integer;
   View: TRect;
@@ -1446,7 +1500,7 @@ begin
   Invalidate;
 end;
 
-procedure TExtTabCtrl.AddBtnPaint(Sender: TObject);
+procedure TCustomExtTabCtrl.AddBtnPaint(Sender: TObject);
 var
   Btn: TSpeedButton;
   ImgRes: TScaledImageListResolution;
@@ -1484,7 +1538,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.ScrollBtnPaint(Sender: TObject);
+procedure TCustomExtTabCtrl.ScrollBtnPaint(Sender: TObject);
 var
   Btn: TSpeedButton;
   ImgRes: TScaledImageListResolution;
@@ -1528,7 +1582,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.SetTabStyle(AValue: TExtTabStyle);
+procedure TCustomExtTabCtrl.SetTabStyle(AValue: TExtTabStyle);
 begin
   if FTabStyle <> AValue then
   begin
@@ -1537,7 +1591,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.SetTabPosition(AValue: TExtTabPosition);
+procedure TCustomExtTabCtrl.SetTabPosition(AValue: TExtTabPosition);
 var
   WasVertical, WillBeVertical: Boolean;
   W, H: Integer;
@@ -1576,7 +1630,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.SetTabOptions(AValue: TExtTabOptions);
+procedure TCustomExtTabCtrl.SetTabOptions(AValue: TExtTabOptions);
 var
   i: Integer;
   tabChanged: Boolean;
@@ -1602,7 +1656,7 @@ begin
   Invalidate;
 end;
 
-procedure TExtTabCtrl.SetImages(AValue: TCustomImageList);
+procedure TCustomExtTabCtrl.SetImages(AValue: TCustomImageList);
 begin
   if FImages <> AValue then
   begin
@@ -1618,17 +1672,17 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.SetButtonImageIndexes(AValue: TExtButtonImageIndexes);
+procedure TCustomExtTabCtrl.SetButtonImageIndexes(AValue: TExtButtonImageIndexes);
 begin
   FButtonImageIndexes.Assign(AValue);
 end;
 
-procedure TExtTabCtrl.SetImagesWidth(AValue: TExtImagesWidth);
+procedure TCustomExtTabCtrl.SetImagesWidth(AValue: TExtImagesWidth);
 begin
   FImagesWidth.Assign(AValue);
 end;
 
-procedure TExtTabCtrl.SetBorderColor(AValue: TColor);
+procedure TCustomExtTabCtrl.SetBorderColor(AValue: TColor);
 begin
   if AValue = FBorderColor then Exit;
 
@@ -1636,7 +1690,7 @@ begin
   Invalidate;
 end;
 
-procedure TExtTabCtrl.SetMinCaptionLen(AValue: Integer);
+procedure TCustomExtTabCtrl.SetMinCaptionLen(AValue: Integer);
 var
   i: Integer;
 begin
@@ -1652,7 +1706,7 @@ begin
   InvalidateLayout;
 end;
 
-procedure TExtTabCtrl.SetMaxCaptionLen(AValue: Integer);
+procedure TCustomExtTabCtrl.SetMaxCaptionLen(AValue: Integer);
 var
   i: Integer;
 begin
@@ -1667,7 +1721,7 @@ begin
   InvalidateLayout;
 end;
 
-procedure TExtTabCtrl.SetButtonHints(AValue: TExtButtonHints);
+procedure TCustomExtTabCtrl.SetButtonHints(AValue: TExtButtonHints);
 begin
   FButtonHints.Assign(AValue);
 
@@ -1675,17 +1729,17 @@ begin
     AnchorButtons;
 end;
 
-procedure TExtTabCtrl.SetTabs(AValue: TExtTabs);
+procedure TCustomExtTabCtrl.SetTabs(AValue: TExtTabs);
 begin
   FTabs.Assign(AValue);
 end;
 
-function TExtTabCtrl.GetAddMenu: TPopupMenu;
+function TCustomExtTabCtrl.GetAddMenu: TPopupMenu;
 begin
   Result := FBtnAdd.PopupMenu;
 end;
 
-procedure TExtTabCtrl.SetOnDrawTab(AValue: TTabDrawEvent);
+procedure TCustomExtTabCtrl.SetOnDrawTab(AValue: TTabDrawEvent);
 begin
   if not SameMethod(TMethod(AValue), TMethod(FOnDrawTab)) then
   begin
@@ -1694,7 +1748,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.SetOnDrawButton(AValue: TButtonDrawEvent);
+procedure TCustomExtTabCtrl.SetOnDrawButton(AValue: TButtonDrawEvent);
 begin
   if not SameMethod(TMethod(AValue), TMethod(FOnDrawButton)) then
   begin
@@ -1708,17 +1762,17 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.SetAddMenu(AValue: TPopupMenu);
+procedure TCustomExtTabCtrl.SetAddMenu(AValue: TPopupMenu);
 begin
   FBtnAdd.PopupMenu := AValue;
 end;
 
-procedure TExtTabCtrl.ButtonImagesChanged(Sender: TObject);
+procedure TCustomExtTabCtrl.ButtonImagesChanged(Sender: TObject);
 begin
   UpdateBtnImages;
 end;
 
-procedure TExtTabCtrl.ButtonHintsChanged(Sender: TObject);
+procedure TCustomExtTabCtrl.ButtonHintsChanged(Sender: TObject);
 begin
   if Assigned(FBtnAdd) then
   begin
@@ -1737,13 +1791,13 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.ImagesWidthChanged(Sender: TObject);
+procedure TCustomExtTabCtrl.ImagesWidthChanged(Sender: TObject);
 begin
   // Re-trigger the button image extraction
   UpdateBtnImages;
 end;
 
-function TExtTabCtrl.TabsViewportRect(ShowPrev, ShowNext, ShowAdd: Boolean): TRect;
+function TCustomExtTabCtrl.TabsViewportRect(ShowPrev, ShowNext, ShowAdd: Boolean): TRect;
 var
   Spacing: Integer;
   NeedsSpacing: Boolean;
@@ -1800,7 +1854,7 @@ begin
   end;
 end;
 
-function TExtTabCtrl.TabsViewportRect: TRect;
+function TCustomExtTabCtrl.TabsViewportRect: TRect;
 var
   ShowPrev, ShowNext, ShowAdd: Boolean;
   ViewNoNext: TRect;
@@ -1827,7 +1881,7 @@ end;
 
 // Sets Anchors on the three buttons so the LCL layout engine keeps them
 // correctly positioned automatically on every resize
-procedure TExtTabCtrl.AnchorButtons;
+procedure TCustomExtTabCtrl.AnchorButtons;
 var
   ScrollPrevW, ScrollPrevH, ScrollNextW, ScrollNextH, AddW, AddH: Integer;
   ShowAdd: Boolean;
@@ -2009,29 +2063,29 @@ begin
   FLayoutDirty := True;
 end;
 
-function TExtTabCtrl.IsVertical: Boolean;
+function TCustomExtTabCtrl.IsVertical: Boolean;
 begin
   Result := FTabPosition in [etpLeft, etpRight];
 end;
 
-function TExtTabCtrl.IsHorizontal: Boolean;
+function TCustomExtTabCtrl.IsHorizontal: Boolean;
 begin
   Result := not IsVertical;
 end;
 
-procedure TExtTabCtrl.GetAxisSpan(const R: TRect; out AStart, AEnd: Integer);
+procedure TCustomExtTabCtrl.GetAxisSpan(const R: TRect; out AStart, AEnd: Integer);
 begin
   AStart := IfThen(IsHorizontal, R.Left, R.Top);
   AEnd := IfThen(IsHorizontal, R.Right, R.Bottom);
 end;
 
-function TExtTabCtrl.AxisSize(const R: TRect): Integer;
+function TCustomExtTabCtrl.AxisSize(const R: TRect): Integer;
 begin
   Result := IfThen(IsHorizontal, R.Width, R.Height);
 end;
 
 // Translate a tab's logical FBoundRect into screen/view coordinates
-procedure TExtTabCtrl.OffsetToView(var R: TRect; const View: TRect);
+procedure TCustomExtTabCtrl.OffsetToView(var R: TRect; const View: TRect);
 begin
   if IsHorizontal then
     Types.OffsetRect(R, View.Left - FScrollOffset, View.Top)
@@ -2040,7 +2094,7 @@ begin
 end;
 
 // Inverse of OffsetToView for a single point
-function TExtTabCtrl.ViewToContent(const P: TPoint; const View: TRect): TPoint;
+function TCustomExtTabCtrl.ViewToContent(const P: TPoint; const View: TRect): TPoint;
 begin
   Result := Point(P.X - View.Left, P.Y - View.Top);
   if IsHorizontal then
@@ -2049,7 +2103,7 @@ begin
     Inc(Result.Y, FScrollOffset);
 end;
 
-function TExtTabCtrl.CloseButtonRect(Tab: TExtTab): TRect;
+function TCustomExtTabCtrl.CloseButtonRect(Tab: TExtTab): TRect;
 var
   CloseW, CloseH, M: Integer;
 begin
@@ -2088,7 +2142,7 @@ begin
   end;
 end;
 
-function TExtTabCtrl.TabAtPos(X, Y: Integer): Integer;
+function TCustomExtTabCtrl.TabAtPos(X, Y: Integer): Integer;
 var
   i: Integer;
   P: TPoint;
@@ -2107,7 +2161,7 @@ begin
   end;
 end;
 
-function TExtTabCtrl.MaxScrollOffset: Integer;
+function TCustomExtTabCtrl.MaxScrollOffset: Integer;
 var
   View: TRect;
 begin
@@ -2115,7 +2169,7 @@ begin
   Result := Max(0, FTotalTabsSize - AxisSize(View));
 end;
 
-procedure TExtTabCtrl.EnsureTabVisible(Index: Integer);
+procedure TCustomExtTabCtrl.EnsureTabVisible(Index: Integer);
 var
   R: TRect;
   ShowPrev, ShowNext, ShowAdd: Boolean;
@@ -2191,7 +2245,7 @@ end;
 
 // "Soft" counterpart to EnsureTabVisible: used whenever the tab strip's
 // geometry/button configuration hasn't changed but only the selection
-procedure TExtTabCtrl.ScrollTabIntoView(Index: Integer);
+procedure TCustomExtTabCtrl.ScrollTabIntoView(Index: Integer);
 var
   R, View: TRect;
   TabStart, TabEnd, ViewSize: Integer;
@@ -2236,7 +2290,7 @@ begin
   Invalidate;
 end;
 
-procedure TExtTabCtrl.UpdateScrollButtons;
+procedure TCustomExtTabCtrl.UpdateScrollButtons;
 var
   Can: Boolean;
   NewPrevVis, NewNextVis: Boolean;
@@ -2268,17 +2322,17 @@ begin
   end;
 end;
 
-function TExtTabCtrl.GetScale(Value: Integer): Integer;
+function TCustomExtTabCtrl.GetScale(Value: Integer): Integer;
 begin
   Result := Scale96ToFont(Value);
 end;
 
-function TExtTabCtrl.MinUsefulTabSize: Integer;
+function TCustomExtTabCtrl.MinUsefulTabSize: Integer;
 begin
   Result := GetScale(16 + 2*cContentIndent);
 end;
 
-function TExtTabCtrl.GetIconExtent(AImageIndex, AImageWidth: Integer; IsWidth: Boolean): Integer;
+function TCustomExtTabCtrl.GetIconExtent(AImageIndex, AImageWidth: Integer; IsWidth: Boolean): Integer;
 var
   ppi: Integer;
 begin
@@ -2294,7 +2348,7 @@ begin
     Result := GetScale(16);
 end;
 
-procedure TExtTabCtrl.DrawTabTextAndImage(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean; DefaultFontColor: TColor);
+procedure TCustomExtTabCtrl.DrawTabTextAndImage(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean; DefaultFontColor: TColor);
 var
   TextRect: TRect;
   ImgPos: TPoint;
@@ -2351,7 +2405,7 @@ begin
     DrawRotatedText(ACanvas, GetDisplayCaption(Tab), TextRect, GetRotationForPosition);
 end;
 
-procedure TExtTabCtrl.DrawTabImage(ACanvas: TCanvas; Tab: TExtTab; X, Y: Integer);
+procedure TCustomExtTabCtrl.DrawTabImage(ACanvas: TCanvas; Tab: TExtTab; X, Y: Integer);
 var
   bmp: TBitmap;
 begin
@@ -2367,7 +2421,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.DrawRotatedText(ACanvas: TCanvas; const S: String; const R: TRect; Degrees: Integer);
+procedure TCustomExtTabCtrl.DrawRotatedText(ACanvas: TCanvas; const S: String; const R: TRect; Degrees: Integer);
 var
   SavedOrientation: Integer;
 begin
@@ -2386,7 +2440,7 @@ begin
   ACanvas.Font.Orientation := SavedOrientation;
 end;
 
-function TExtTabCtrl.GetRotationForPosition: Integer;
+function TCustomExtTabCtrl.GetRotationForPosition: Integer;
 begin
   case FTabPosition of
     etpLeft: Result := 90;
@@ -2395,13 +2449,13 @@ begin
   end;
 end;
 
-function TExtTabCtrl.HasAnyImage(Tab: TExtTab): Boolean;
+function TCustomExtTabCtrl.HasAnyImage(Tab: TExtTab): Boolean;
 begin
   Result := (Assigned(FImages) and (Tab.ImageIndex >= 0)) or
             (Assigned(Tab.FImage) and not Tab.FImage.Empty);
 end;
 
-function TExtTabCtrl.GetTabImageWidth(Tab: TExtTab): Integer;
+function TCustomExtTabCtrl.GetTabImageWidth(Tab: TExtTab): Integer;
 begin
   if Assigned(FImages) and (Tab.ImageIndex >= 0) then
     // Use the DPI-aware width
@@ -2412,7 +2466,7 @@ begin
     Result := 0;
 end;
 
-function TExtTabCtrl.GetTabImageHeight(Tab: TExtTab): Integer;
+function TCustomExtTabCtrl.GetTabImageHeight(Tab: TExtTab): Integer;
 begin
   if Assigned(FImages) and (Tab.ImageIndex >= 0) then
     // Use the DPI-aware height
@@ -2423,7 +2477,7 @@ begin
     Result := 0;
 end;
 
-function TExtTabCtrl.GetTabTextBounds(ACanvas: TCanvas; const R: TRect; Tab: TExtTab): TRect;
+function TCustomExtTabCtrl.GetTabTextBounds(ACanvas: TCanvas; const R: TRect; Tab: TExtTab): TRect;
 var
   Indent, Spacing, CloseExtend, ImgH: Integer;
   TextSize: TSize;
@@ -2505,7 +2559,7 @@ begin
 end;
 
 // Get the best matching resolution for the current DPI
-procedure TExtTabCtrl.GetBaseTabBitmap(Tab: TExtTab; Dest: TBitmap);
+procedure TCustomExtTabCtrl.GetBaseTabBitmap(Tab: TExtTab; Dest: TBitmap);
 begin
   if Assigned(FImages) and (Tab.ImageIndex >= 0) then
     FInternalImages.ResolutionForPPI[FImagesWidth.TabsWidth, Font.PixelsPerInch, 1].GetBitmap(Tab.ImageIndex, Dest)
@@ -2515,7 +2569,7 @@ begin
     Dest.Clear;
 end;
 
-procedure TExtTabCtrl.DrawCloseButton(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean);
+procedure TCustomExtTabCtrl.DrawCloseButton(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; IsActive: Boolean);
 var
   CloseR: TRect;
   imgRes: TScaledImageListResolution;
@@ -2567,7 +2621,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.DrawColorStripe(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; Indent: Integer);
+procedure TCustomExtTabCtrl.DrawColorStripe(ACanvas: TCanvas; const R: TRect; Tab: TExtTab; Indent: Integer);
 var
   IndicatorRect: TRect;
   Thick: Integer;
@@ -2595,7 +2649,7 @@ end;
 
 { Drawing Handlers }
 
-procedure TExtTabCtrl.DrawFlatTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
+procedure TCustomExtTabCtrl.DrawFlatTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
 var
   P: array[0..3] of TPoint;
   BaseClr: TColor;
@@ -2658,7 +2712,7 @@ begin
   if IsActive then ACanvas.Polyline(P) else ACanvas.Polygon(P);
 end;
 
-procedure TExtTabCtrl.DrawButtonTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
+procedure TCustomExtTabCtrl.DrawButtonTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
 var
   BaseClr, LightClr, ShadowClr, BackClr: TColor;
 begin
@@ -2722,7 +2776,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.DrawDelphiTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
+procedure TCustomExtTabCtrl.DrawDelphiTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
 var
   P: array[0..3] of TPoint;
   S: Integer;
@@ -2807,7 +2861,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.DrawChromeTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
+procedure TCustomExtTabCtrl.DrawChromeTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
 var
   Radius: Integer;
   StripeBounds: TRect;
@@ -2912,7 +2966,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.DrawMacOSTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
+procedure TCustomExtTabCtrl.DrawMacOSTab(ACanvas: TCanvas; var R: TRect; IsActive: Boolean; Tab: TExtTab; var FontColor: TColor; var Indent: Integer);
 var
   Radius: Integer;
   DrawR: TRect;
@@ -2978,7 +3032,7 @@ begin
 end;
 
 // Resolves clDefault and other system colors before mixing
-function TExtTabCtrl.ResolveColor(AColor: TColor): TColor;
+function TCustomExtTabCtrl.ResolveColor(AColor: TColor): TColor;
 begin
   if AColor = clDefault then
     Result := ColorToRGB(GetDefaultColor(dctBrush))
@@ -2986,14 +3040,14 @@ begin
     Result := ColorToRGB(AColor);
 end;
 
-function TExtTabCtrl.InactiveFontColor: TColor;
+function TCustomExtTabCtrl.InactiveFontColor: TColor;
 begin
   Result := BlendColors(ResolveColor(clGrayText), ResolveColor(clWindowText), 0.55);
 end;
 
 // Returns the caption as it should appear on the tab
 // The original caption is never modified, hints always show the full text
-function TExtTabCtrl.GetDisplayCaption(Tab: TExtTab): String;
+function TCustomExtTabCtrl.GetDisplayCaption(Tab: TExtTab): String;
 const
   EllipsisStr = '...';
   TailLen = 5;
@@ -3019,7 +3073,7 @@ begin
 end;
 
 // Draws the folder-tab separator line along the inner edge of the tab strip
-procedure TExtTabCtrl.DrawStripLine(ACanvas: TCanvas; const View: TRect);
+procedure TCustomExtTabCtrl.DrawStripLine(ACanvas: TCanvas; const View: TRect);
 begin
   ACanvas.Pen.Color := FBorderColor;
   ACanvas.Pen.Width := 1;
@@ -3036,7 +3090,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.DrawTab(ACanvas: TCanvas; Index: Integer; ARect: TRect; IsActive: Boolean);
+procedure TCustomExtTabCtrl.DrawTab(ACanvas: TCanvas; Index: Integer; ARect: TRect; IsActive: Boolean);
 var
   IsHover: Boolean;
   FontColor: TColor;
@@ -3089,7 +3143,7 @@ begin
   DrawCloseButton(ACanvas, TabRect, Tab, IsActive);
 end;
 
-procedure TExtTabCtrl.CalcLayout;
+procedure TCustomExtTabCtrl.CalcLayout;
 var
   i, Pos, TabLen: Integer;
   TxtExtent, ImgExtent,
@@ -3182,7 +3236,7 @@ begin
   UpdateScrollButtons;
 end;
 
-procedure TExtTabCtrl.Paint;
+procedure TCustomExtTabCtrl.Paint;
 var
   i: Integer;
   OrgSaveIdx, ClipSaveIdx: Integer;
@@ -3321,7 +3375,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.Resize;
+procedure TCustomExtTabCtrl.Resize;
 begin
   inherited Resize;
   if not HandleAllocated then Exit;
@@ -3336,7 +3390,7 @@ begin
 end;
 
 // Lightweight tab-switch for use at design time and from the component tree
-procedure TExtTabCtrl.SetDesignTabIndex(AValue: Integer);
+procedure TCustomExtTabCtrl.SetDesignTabIndex(AValue: Integer);
 begin
   if (AValue < 0) or (AValue >= FTabs.Count) then Exit;
   if FTabIndex = AValue then Exit;
@@ -3356,7 +3410,7 @@ begin
   Invalidate;
 end;
 
-procedure TExtTabCtrl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+procedure TCustomExtTabCtrl.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   Idx: Integer;
   View, R, CR: TRect;
@@ -3449,7 +3503,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.MouseMove(Shift: TShiftState; X, Y: Integer);
+procedure TCustomExtTabCtrl.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
   i, HoverNewTab: Integer;
   TabRect: TRect;
@@ -3593,7 +3647,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+procedure TCustomExtTabCtrl.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   Allow: Boolean;
   Idx: Integer;
@@ -3650,7 +3704,7 @@ begin
   inherited MouseUp(Button, Shift, X, Y);
 end;
 
-procedure TExtTabCtrl.MouseLeave;
+procedure TCustomExtTabCtrl.MouseLeave;
 begin
   inherited MouseLeave;
 
@@ -3663,7 +3717,7 @@ begin
   Invalidate;
 end;
 
-function TExtTabCtrl.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
+function TCustomExtTabCtrl.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
   MousePos: TPoint): Boolean;
 var
   Candidate: Integer;
@@ -3688,21 +3742,21 @@ begin
   Result := True;
 end;
 
-procedure TExtTabCtrl.DoEnter;
+procedure TCustomExtTabCtrl.DoEnter;
 begin
   inherited DoEnter;
   Invalidate; // repaint to show focus indicator
   if Assigned(FOnGetFocus) then FOnGetFocus(Self);
 end;
 
-procedure TExtTabCtrl.DoExit;
+procedure TCustomExtTabCtrl.DoExit;
 begin
   inherited DoExit;
   Invalidate; // repaint to hide focus indicator
   if Assigned(FOnLostFocus) then FOnLostFocus(Self);
 end;
 
-procedure TExtTabCtrl.WMLMGetDlgCode(var Message: TLMessage);
+procedure TCustomExtTabCtrl.WMLMGetDlgCode(var Message: TLMessage);
 begin
   // Only claim arrow keys when the control is allowed to hold focus
   if etoGetFocus in FTabOptions then
@@ -3711,7 +3765,7 @@ begin
     Message.Result := 0;
 end;
 
-procedure TExtTabCtrl.CMDesignHitTest(var Message: TLMessage);
+procedure TCustomExtTabCtrl.CMDesignHitTest(var Message: TLMessage);
 var
   PCoords: TSmallPoint;
   Pt: TPoint;
@@ -3732,7 +3786,7 @@ begin
   //inherited;
 end;
 
-procedure TExtTabCtrl.DblClick;
+procedure TCustomExtTabCtrl.DblClick;
 var
   Idx: Integer;
 begin
@@ -3743,7 +3797,7 @@ begin
     FOnTabDblClick(Self, Idx);
 end;
 
-procedure TExtTabCtrl.KeyDown(var Key: Word; Shift: TShiftState);
+procedure TCustomExtTabCtrl.KeyDown(var Key: Word; Shift: TShiftState);
 var
   Candidate: Integer;
 begin
@@ -3772,13 +3826,13 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.CreateWnd;
+procedure TCustomExtTabCtrl.CreateWnd;
 begin
   inherited CreateWnd;
   AnchorButtons;
 end;
 
-procedure TExtTabCtrl.Loaded;
+procedure TCustomExtTabCtrl.Loaded;
 begin
   inherited Loaded;
 
@@ -3791,7 +3845,7 @@ begin
   UpdateBtnImages;
 end;
 
-procedure TExtTabCtrl.Notification(AComponent: TComponent; Operation: TOperation);
+procedure TCustomExtTabCtrl.Notification(AComponent: TComponent; Operation: TOperation);
 begin
   inherited Notification(AComponent, Operation);
   if Operation = opRemove then
@@ -3806,14 +3860,14 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.CalculatePreferredSize(var PreferredWidth, PreferredHeight: Integer; WithImplicitConstraints: Boolean);
+procedure TCustomExtTabCtrl.CalculatePreferredSize(var PreferredWidth, PreferredHeight: Integer; WithImplicitConstraints: Boolean);
 begin
   // Clamp the control to exactly the tab-strip thickness
   PreferredWidth := IfThen(IsHorizontal, 0, FTabSize);    // user controls width freely when horizontal
   PreferredHeight := IfThen(IsHorizontal, FTabSize, 0);   // user controls height freely when vertical
 end;
 
-procedure TExtTabCtrl.CMShowHintChanged(var Message: TLMessage);
+procedure TCustomExtTabCtrl.CMShowHintChanged(var Message: TLMessage);
 begin
   inherited;
 
@@ -3821,7 +3875,7 @@ begin
   ButtonHintsChanged(Self);
 end;
 
-procedure TExtTabCtrl.CMFontChanged(var Message: TLMessage);
+procedure TCustomExtTabCtrl.CMFontChanged(var Message: TLMessage);
 begin
   inherited;
 
@@ -3830,7 +3884,7 @@ begin
   UpdateImages;
 end;
 
-procedure TExtTabCtrl.UpdateImages;
+procedure TCustomExtTabCtrl.UpdateImages;
 var
   i: Integer;
 begin
@@ -3851,7 +3905,7 @@ begin
   InvalidateLayout;
 end;
 
-procedure TExtTabCtrl.UpdateBtnImages;
+procedure TCustomExtTabCtrl.UpdateBtnImages;
 begin
   // Reset Images
   FBtnAdd.Images := nil;
@@ -3866,7 +3920,7 @@ begin
   UpdateTabSizeForImages;
 end;
 
-procedure TExtTabCtrl.UpdateTabSizeForImages;
+procedure TCustomExtTabCtrl.UpdateTabSizeForImages;
 var
   ppi: Integer;
   MinStrip: Integer;
@@ -3918,7 +3972,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.DoAutoAdjustLayout(const AMode: TLayoutAdjustmentPolicy; const AXProportion, AYProportion: Double);
+procedure TCustomExtTabCtrl.DoAutoAdjustLayout(const AMode: TLayoutAdjustmentPolicy; const AXProportion, AYProportion: Double);
 begin
   inherited;
   if AMode in [lapAutoAdjustWithoutHorizontalScrolling, lapAutoAdjustForDPI] then
@@ -3930,17 +3984,17 @@ begin
   end;
 end;
 
-function TExtTabCtrl.GetIsUpdating: Boolean;
+function TCustomExtTabCtrl.GetIsUpdating: Boolean;
 begin
   Result := FUpdateCount > 0;
 end;
 
-procedure TExtTabCtrl.BeginUpdate;
+procedure TCustomExtTabCtrl.BeginUpdate;
 begin
   Inc(FUpdateCount);
 end;
 
-procedure TExtTabCtrl.EndUpdate;
+procedure TCustomExtTabCtrl.EndUpdate;
 begin
   if FUpdateCount > 0 then Dec(FUpdateCount);
   if FUpdateCount = 0 then
@@ -3953,13 +4007,13 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.InvalidateLayout;
+procedure TCustomExtTabCtrl.InvalidateLayout;
 begin
   FLayoutDirty := True;
   if (FUpdateCount = 0) and HandleAllocated then Invalidate;
 end;
 
-function TExtTabCtrl.AddTab(const ACaption: String; AData: TObject): TExtTab;
+function TCustomExtTabCtrl.AddTab(const ACaption: String; AData: TObject): TExtTab;
 var
   Allow: Boolean;
   Cap: String;
@@ -4011,7 +4065,7 @@ begin
   end;
 end;
 
-procedure TExtTabCtrl.DeleteTab(Index: Integer);
+procedure TCustomExtTabCtrl.DeleteTab(Index: Integer);
 var
   Allow: Boolean;
   OldIndex, NewIndex: Integer;
@@ -4103,7 +4157,7 @@ begin
   InvalidateLayout;
 end;
 
-procedure TExtTabCtrl.ImportFromStrings(Source: TStrings; ClearExisting: Boolean = True);
+procedure TCustomExtTabCtrl.ImportFromStrings(Source: TStrings; ClearExisting: Boolean = True);
 var
   i: Integer;
   NewTab: TExtTab;
@@ -4145,7 +4199,7 @@ begin
     FOnTabCreated(Self);
 end;
 
-procedure TExtTabCtrl.PrepareInternalTabImages(ARotation: Integer);
+procedure TCustomExtTabCtrl.PrepareInternalTabImages(ARotation: Integer);
 var
   bmp: array of TCustomBitmap = nil;
   widths: Array of Integer = nil;
@@ -4199,7 +4253,7 @@ begin
     FInternalImages.Assign(FImages);
 end;
 
-constructor TExtTabCtrl.Create(AOwner: TComponent);
+constructor TCustomExtTabCtrl.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
 
@@ -4273,7 +4327,7 @@ begin
   FInternalChange := 0;
 end;
 
-destructor TExtTabCtrl.Destroy;
+destructor TCustomExtTabCtrl.Destroy;
 begin
   // Cancel any pending hint window that may reference our handle
   Application.CancelHint;
