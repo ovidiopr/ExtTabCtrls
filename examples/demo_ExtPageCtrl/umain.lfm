@@ -16,23 +16,6 @@ object Form1: TForm1
     Align = alClient
     BorderSpacing.Around = 5
     DoubleBuffered = True
-    Tabs = <    
-      item
-        Caption = 'Position'
-        ImageIndex = 14
-        ShowCloseButton = False
-      end    
-      item
-        Caption = 'Style'
-        ImageIndex = 4
-        ShowCloseButton = False
-      end    
-      item
-        Caption = 'Options'
-        ImageIndex = 8
-        ShowCloseButton = False
-      end>
-    TabIndex = 0
     TabSize = 28
     TabStyle = etsChrome
     TabOptions = [etoActivateNewTab, etoShowCloseButton, etoShowAddButton, etoCloseOnMiddleClick, etoAllowDragReorder, etoGetFocus, etoActiveBold]
@@ -42,6 +25,9 @@ object Form1: TForm1
     ButtonImageIndexes.CloseIndex = 3
     PageIndex = 0
     object ExtPage1: TExtPage
+      Tab.Caption = 'Position'
+      Tab.ImageIndex = 14
+      Tab.ShowCloseButton = False
       object RadioGroup1: TRadioGroup
         Left = 0
         Height = 99
@@ -73,6 +59,9 @@ object Form1: TForm1
       end
     end
     object ExtPage2: TExtPage
+      Tab.Caption = 'Style'
+      Tab.ImageIndex = 4
+      Tab.ShowCloseButton = False
       object RadioGroup2: TRadioGroup
         Left = 0
         Height = 117
@@ -104,6 +93,9 @@ object Form1: TForm1
       end
     end
     object ExtPage3: TExtPage
+      Tab.Caption = 'Options'
+      Tab.ImageIndex = 8
+      Tab.ShowCloseButton = False
       object cbShowNewTabBtn: TCheckBox
         AnchorSideLeft.Control = ExtPage3
         AnchorSideTop.Control = ExtPage3
