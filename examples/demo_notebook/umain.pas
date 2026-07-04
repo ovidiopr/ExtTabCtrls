@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, ValEdit,
-  StdCtrls, Buttons, ExtDlgs, ExtTabCtrl;
+  StdCtrls, Buttons, ExtDlgs, ExtTabCtrl, ExtTabCtrlStyles;
 
 type
 

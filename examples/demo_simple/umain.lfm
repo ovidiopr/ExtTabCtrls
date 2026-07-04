@@ -8,7 +8,7 @@ object Form1: TForm1
   ClientHeight = 326
   ClientWidth = 416
   ParentBiDiMode = False
-  LCLVersion = '4.6.0.0'
+  LCLVersion = '4.8.0.0'
   OnCreate = FormCreate
   object GroupBox1: TGroupBox
     Left = 0

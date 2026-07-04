@@ -102,10 +102,10 @@ object Form1: TForm1
         Left = 10
         Height = 18
         Top = 10
-        Width = 158
+        Width = 166
         BorderSpacing.Left = 10
         BorderSpacing.Top = 10
-        Caption = 'Show "Add Tab" button'
+        Caption = 'Show "Add Page" button'
         Checked = True
         State = cbChecked
         TabOrder = 0
@@ -118,9 +118,9 @@ object Form1: TForm1
         Left = 10
         Height = 18
         Top = 30
-        Width = 151
+        Width = 158
         BorderSpacing.Top = 2
-        Caption = 'Rotate "Add Tab" icon'
+        Caption = 'Rotate "Add Page" icon'
         TabOrder = 1
         OnChange = cbRotateNewTabBtnChange
       end

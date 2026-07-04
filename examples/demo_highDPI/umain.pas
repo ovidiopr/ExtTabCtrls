@@ -15,7 +15,7 @@ uses
  {$IFDEF MSWINDOWS}
   uDarkStyleParams, uWin32WidgetSetDark, uDarkStyleSchemes, uMetaDarkStyle,
  {$ENDIF}
-  ExtTabCtrl;
+  ExtTabCtrl, ExtTabCtrlStyles;
 
 type
 

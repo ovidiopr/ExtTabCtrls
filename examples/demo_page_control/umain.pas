@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls, StdCtrls,
-  ExtTabCtrl, uStyle, uPosition, uEditor;
+  ExtTabCtrl, ExtTabCtrlStyles, uStyle, uPosition, uEditor;
 
 type
 
