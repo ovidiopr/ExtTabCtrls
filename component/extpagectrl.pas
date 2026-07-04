@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Controls, Graphics, LCLType, Types, Math, LResources,
-  Contnrs, Forms, ExtCtrls, ImgList, ExtTabCtrl, LMessages
+  Contnrs, Forms, ExtCtrls, ImgList, ExtTabCtrl, ExtTabCtrlStyles
   {$IFDEF LCLDesign}, PropEdits{$ENDIF};
 
 type
@@ -580,8 +580,8 @@ begin
   try
     TBT := TabSize;
 
-    // If the style draws a border, we must inset the page by 1 pixel
-    if TabStyle = etsMacOS then B := 0 else B := 1;
+    // If the style draws a border/strip line, we must inset the page by 1 pixel
+    if StyleOptions.ShowStripLine then B := 1 else B := 0;
 
     for i := 0 to FPageList.Count - 1 do
     begin
@@ -1088,7 +1088,7 @@ var
 begin
   inherited Paint;
 
-  if TabStyle = etsMacOS then Exit;
+  if not StyleOptions.ShowStripLine then Exit;
   if (not Assigned(Tabs)) or (Tabs.Count = 0) then Exit;
 
   R := ClientRect;
