@@ -31,7 +31,7 @@ type
   TButtonClickEvent = procedure(Sender: TObject) of object;
   TTabMouseEvent = procedure(Sender: TObject; Index: Integer) of object;
   TTabDrawEvent = procedure(Sender: TObject; ACanvas: TCanvas; ARect: TRect;
-    IsActive, IsHover: Boolean; var FontColor: TColor; var Indent: Integer; var Skip: Boolean) of object;
+    IsActive, IsHover: Boolean; var Options: TExtTabStyleOptions; var Skip: Boolean) of object;
   TButtonDrawEvent = procedure(Sender: TObject; ACanvas: TCanvas; ARect: TRect;
     AButtonType: TExtButtonType; ATab: TExtTab; IsActive, IsHover: Boolean; var Skip: Boolean) of object;
 
@@ -271,8 +271,6 @@ type
     procedure SetButtonHints(AValue: TExtButtonHints);
     procedure SetImagesWidth(AValue: TExtImagesWidth);
     procedure SetBorderColor(AValue: TColor);
-    procedure SetStyleOptions(AValue: TExtTabStyleOptions);
-    procedure StyleOptionsChanged(Sender: TObject);
     function BuildStyleContext(Tab: TExtTab): TExtTabDrawContext;
     procedure SetTabs(AValue: TExtTabs);
     procedure SetMinCaptionLen(AValue: Integer);
@@ -351,6 +349,7 @@ type
     function TabAtPos(X, Y: Integer): Integer;
 
     property IsUpdating: Boolean read GetIsUpdating;
+    property StyleOptions: TExtTabStyleOptions read FStyleOptions;
 
     procedure DoEnter; override;
     procedure DoExit; override;
@@ -410,7 +409,6 @@ type
     property ImagesWidth: TExtImagesWidth read FImagesWidth write SetImagesWidth;
     property ButtonHints: TExtButtonHints read FButtonHints write SetButtonHints;
     property BorderColor: TColor read FBorderColor write SetBorderColor default clBtnShadow;
-    property StyleOptions: TExtTabStyleOptions read FStyleOptions write SetStyleOptions;
 
     property AddMenu: TPopupMenu read GetAddMenu write SetAddMenu;
 
@@ -462,7 +460,6 @@ type
     property ImagesWidth;
     property ButtonHints;
     property BorderColor;
-    property StyleOptions;
 
     property AddMenu;
 
@@ -1729,16 +1726,6 @@ begin
   Invalidate;
 end;
 
-procedure TCustomExtTabCtrl.SetStyleOptions(AValue: TExtTabStyleOptions);
-begin
-  FStyleOptions.Assign(AValue);
-end;
-
-procedure TCustomExtTabCtrl.StyleOptionsChanged(Sender: TObject);
-begin
-  Invalidate;
-end;
-
 procedure TCustomExtTabCtrl.SetMinCaptionLen(AValue: Integer);
 var
   i: Integer;
@@ -2723,7 +2710,6 @@ begin
   Result.InactiveFontColor := InactiveFontColor;
   Result.ResolveColor := @ResolveColor;
   Result.GetScale := @GetScale;
-  Result.Options := FStyleOptions;
 
   Result.TabColor := clNone;
   Result.TabStripeColor := clNone;
@@ -2771,8 +2757,6 @@ end;
 procedure TCustomExtTabCtrl.DrawTab(ACanvas: TCanvas; Index: Integer; ARect: TRect; IsActive: Boolean);
 var
   IsHover: Boolean;
-  FontColor: TColor;
-  Indent: Integer;
   Tab: TExtTab;
   StyleContext: TExtTabDrawContext;
   TabRect: TRect;
@@ -2783,9 +2767,10 @@ begin
   IsHover := (Index = FHoverTab);
   TabRect := ARect;
 
-  // Sensible defaults; the style procedure (or OnDrawTab) may override either
-  FontColor := IfThen(IsActive, Font.Color, InactiveFontColor);
-  Indent := 2;
+  // Sensible defaults; the style procedure (or OnDrawTab) may override them
+  FStyleOptions.FontColor := IfThen(IsActive, Font.Color, InactiveFontColor);
+  FStyleOptions.Indent := GetScale(2);
+  FStyleOptions.ShowStripLine := True;
   Skip := True;
 
   // Use the custom draw event (if assigned) or the built-in style
@@ -2793,7 +2778,7 @@ begin
   begin
     SavedPen := SavePen(ACanvas);
     try
-      FOnDrawTab(Self, ACanvas, TabRect, IsActive, IsHover, FontColor, Indent, Skip);
+      FOnDrawTab(Self, ACanvas, TabRect, IsActive, IsHover, FStyleOptions, Skip);
     finally
       RestorePen(ACanvas, SavedPen);
     end;
@@ -2804,27 +2789,27 @@ begin
     StyleContext := BuildStyleContext(Tab);
     case FTabStyle of
       etsButton:
-        DrawButtonTabStyle(ACanvas, TabRect, IsActive, StyleContext, FontColor, Indent);
+        DrawButtonTabStyle(ACanvas, TabRect, IsActive, StyleContext, FStyleOptions);
       etsDelphi:
-        DrawDelphiTabStyle(ACanvas, TabRect, IsActive, StyleContext, FontColor, Indent);
+        DrawDelphiTabStyle(ACanvas, TabRect, IsActive, StyleContext, FStyleOptions);
       etsMacOS:
-        DrawMacOSTabStyle(ACanvas, TabRect, IsActive, StyleContext, FontColor, Indent);
+        DrawMacOSTabStyle(ACanvas, TabRect, IsActive, StyleContext, FStyleOptions);
       etsFlat:
-        DrawFlatTabStyle(ACanvas, TabRect, IsActive, StyleContext, FontColor, Indent);
+        DrawFlatTabStyle(ACanvas, TabRect, IsActive, StyleContext, FStyleOptions);
       etsChrome:
-        DrawChromeTabStyle(ACanvas, TabRect, IsActive, StyleContext, FontColor, Indent);
+        DrawChromeTabStyle(ACanvas, TabRect, IsActive, StyleContext, FStyleOptions);
     end;
   end;
 
   // Content common to every style: color stripe, image, caption, close button.
   if (Tab.StripeColor <> clNone) then
   begin
-    DrawColorStripe(ACanvas, TabRect, Tab, Indent);
+    DrawColorStripe(ACanvas, TabRect, Tab, FStyleOptions.Indent);
     ACanvas.Brush.Style := bsClear;
     ACanvas.Pen.Style := psSolid;
   end;
 
-  DrawTabTextAndImage(ACanvas, TabRect, Tab, IsActive, FontColor);
+  DrawTabTextAndImage(ACanvas, TabRect, Tab, IsActive, FStyleOptions.FontColor);
   DrawCloseButton(ACanvas, TabRect, Tab, IsActive);
 end;
 
@@ -2940,7 +2925,7 @@ begin
   View := TabsViewportRect;
 
   // Draw the strip separator line across the full component edge
-  DrawStripLineStyle(Canvas, View, BuildStyleContext(nil), ClientWidth, ClientHeight);
+  DrawStripLineStyle(Canvas, View, BuildStyleContext(nil), FStyleOptions, ClientWidth, ClientHeight);
 
   OrgSaveIdx := SaveDC(Canvas.Handle);
   try
@@ -3972,8 +3957,6 @@ begin
   FImagesWidth := TExtImagesWidth.Create;
   FImagesWidth.OnChange := @ImagesWidthChanged;
   FBorderColor := clBtnShadow;
-  FStyleOptions := TExtTabStyleOptions.Create;
-  FStyleOptions.OnChange := @StyleOptionsChanged;
 
   FBtnAdd := TSpeedButton.Create(Self);
   FBtnAdd.Name := 'BtnAdd';  // just for debugging
@@ -4029,7 +4012,6 @@ begin
   FreeAndNil(FButtonImageIndexes);
   FreeAndNil(FButtonHints);
   FreeAndNil(FImagesWidth);
-  FreeAndNil(FStyleOptions);
 
   FreeAndNil(FTabs);
 

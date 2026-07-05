@@ -14,27 +14,10 @@ type
 
   { TExtTabStyleOptions }
   // Options to configure the styles
-  TExtTabStyleOptions = class(TPersistent)
-  private
-    FShowStripLine: Boolean;
-    FShowActiveAccentStripe: Boolean;
-    FCornerRadius: Integer;
-    FOnChange: TNotifyEvent;
-
-    procedure SetShowStripLine(AValue: Boolean);
-    procedure SetShowActiveAccentStripe(AValue: Boolean);
-    procedure SetCornerRadius(AValue: Integer);
-  public
-    constructor Create;
-    procedure Assign(Source: TPersistent); override;
-    property OnChange: TNotifyEvent read FOnChange write FOnChange;
-  published
-    // Whether the full-width/height folder-strip separator line is drawn
-    property ShowStripLine: Boolean read FShowStripLine write SetShowStripLine default True;
-    // Chrome-style accent line drawn under the active tab
-    property ShowActiveAccentStripe: Boolean read FShowActiveAccentStripe write SetShowActiveAccentStripe default True;
-    // Corner rounding used by the Chrome/macOS pill shapes
-    property CornerRadius: Integer read FCornerRadius write SetCornerRadius default 0;
+  TExtTabStyleOptions = record
+    FontColor: TColor;
+    Indent: Integer;
+    ShowStripLine: Boolean;
   end;
 
   TExtTabResolveColorFunc = function(AColor: TColor): TColor of object;
@@ -55,23 +38,22 @@ type
     InactiveFontColor: TColor;
     ResolveColor: TExtTabResolveColorFunc;
     GetScale: TExtTabGetScaleFunc;
-    Options: TExtTabStyleOptions;
   end;
 
 procedure DrawFlatTabStyle(ACanvas: TCanvas; var R: TRect; IsActive: Boolean;
-  const Ctx: TExtTabDrawContext; var FontColor: TColor; var Indent: Integer);
+  const Ctx: TExtTabDrawContext; var Options: TExtTabStyleOptions);
 procedure DrawButtonTabStyle(ACanvas: TCanvas; var R: TRect; IsActive: Boolean;
-  const Ctx: TExtTabDrawContext; var FontColor: TColor; var Indent: Integer);
+  const Ctx: TExtTabDrawContext; var Options: TExtTabStyleOptions);
 procedure DrawDelphiTabStyle(ACanvas: TCanvas; var R: TRect; IsActive: Boolean;
-  const Ctx: TExtTabDrawContext; var FontColor: TColor; var Indent: Integer);
+  const Ctx: TExtTabDrawContext; var Options: TExtTabStyleOptions);
 procedure DrawChromeTabStyle(ACanvas: TCanvas; var R: TRect; IsActive: Boolean;
-  const Ctx: TExtTabDrawContext; var FontColor: TColor; var Indent: Integer);
+  const Ctx: TExtTabDrawContext; var Options: TExtTabStyleOptions);
 procedure DrawMacOSTabStyle(ACanvas: TCanvas; var R: TRect; IsActive: Boolean;
-  const Ctx: TExtTabDrawContext; var FontColor: TColor; var Indent: Integer);
+  const Ctx: TExtTabDrawContext; var Options: TExtTabStyleOptions);
 
 // Draws the folder-tab separator line along the inner edge of the tab strip
-procedure DrawStripLineStyle(ACanvas: TCanvas; const View: TRect;
-  const Ctx: TExtTabDrawContext; AClientWidth, AClientHeight: Integer);
+procedure DrawStripLineStyle(ACanvas: TCanvas; const View: TRect; const Ctx: TExtTabDrawContext;
+  const Options: TExtTabStyleOptions; AClientWidth, AClientHeight: Integer);
 
 // Linear blend between two colors (Ratio=0 -> C1, Ratio=1 -> C2)
 function BlendColors(C1, C2: TColor; Ratio: Single): TColor;
@@ -90,67 +72,17 @@ begin
                 Round(B1*(1 - Ratio) + B2*Ratio));
 end;
 
-{ TExtTabStyleOptions }
-
-constructor TExtTabStyleOptions.Create;
-begin
-  inherited Create;
-  FShowStripLine := True;
-  FShowActiveAccentStripe := True;
-  FCornerRadius := 0;
-end;
-
-procedure TExtTabStyleOptions.SetShowStripLine(AValue: Boolean);
-begin
-  if FShowStripLine <> AValue then
-  begin
-    FShowStripLine := AValue;
-    if Assigned(FOnChange) then FOnChange(Self);
-  end;
-end;
-
-procedure TExtTabStyleOptions.SetShowActiveAccentStripe(AValue: Boolean);
-begin
-  if FShowActiveAccentStripe <> AValue then
-  begin
-    FShowActiveAccentStripe := AValue;
-    if Assigned(FOnChange) then FOnChange(Self);
-  end;
-end;
-
-procedure TExtTabStyleOptions.SetCornerRadius(AValue: Integer);
-begin
-  if FCornerRadius <> AValue then
-  begin
-    FCornerRadius := AValue;
-    if Assigned(FOnChange) then FOnChange(Self);
-  end;
-end;
-
-procedure TExtTabStyleOptions.Assign(Source: TPersistent);
-begin
-  if Source is TExtTabStyleOptions then
-  begin
-    FShowStripLine := TExtTabStyleOptions(Source).ShowStripLine;
-    FShowActiveAccentStripe := TExtTabStyleOptions(Source).ShowActiveAccentStripe;
-    FCornerRadius := TExtTabStyleOptions(Source).CornerRadius;
-
-    if Assigned(FOnChange) then FOnChange(Self);
-  end
-  else
-    inherited Assign(Source);
-end;
-
 { Style drawers }
 
 procedure DrawFlatTabStyle(ACanvas: TCanvas; var R: TRect; IsActive: Boolean;
-  const Ctx: TExtTabDrawContext; var FontColor: TColor; var Indent: Integer);
+  const Ctx: TExtTabDrawContext; var Options: TExtTabStyleOptions);
 var
   P: array[0..3] of TPoint;
   BaseClr: TColor;
 begin
-  Indent := 2;
-  FontColor := IfThen(IsActive, Ctx.ActiveFontColor, Ctx.InactiveFontColor);
+  Options.FontColor := IfThen(IsActive, Ctx.ActiveFontColor, Ctx.InactiveFontColor);
+  Options.Indent := Ctx.GetScale(2);
+  Options.ShowStripLine := True;
 
   // Draw Background
   if IsActive then
@@ -208,12 +140,13 @@ begin
 end;
 
 procedure DrawButtonTabStyle(ACanvas: TCanvas; var R: TRect; IsActive: Boolean;
-  const Ctx: TExtTabDrawContext; var FontColor: TColor; var Indent: Integer);
+  const Ctx: TExtTabDrawContext; var Options: TExtTabStyleOptions);
 var
   BaseClr, LightClr, ShadowClr, BackClr: TColor;
 begin
-  Indent := 2;
-  FontColor := IfThen(IsActive, Ctx.ActiveFontColor, Ctx.InactiveFontColor);
+  Options.FontColor := IfThen(IsActive, Ctx.ActiveFontColor, Ctx.InactiveFontColor);
+  Options.Indent := Ctx.GetScale(2);
+  Options.ShowStripLine := True;
 
   if (Ctx.TabColor <> clNone) then
   begin
@@ -250,11 +183,9 @@ begin
   begin
     // Inverted 3D frame (Shadow on Top/Left, Light on Bottom/Right)
     ACanvas.Pen.Color := ShadowClr;
-    ACanvas.Polyline([Point(R.Left, R.Bottom - 1), Point(R.Left, R.Top),
-      Point(R.Right - 1, R.Top)]);
+    ACanvas.Polyline([Point(R.Left, R.Bottom - 1), Point(R.Left, R.Top), Point(R.Right - 1, R.Top)]);
     ACanvas.Pen.Color := LightClr;
-    ACanvas.Polyline([Point(R.Right - 1, R.Top), Point(R.Right - 1, R.Bottom - 1),
-      Point(R.Left, R.Bottom - 1)]);
+    ACanvas.Polyline([Point(R.Right - 1, R.Top), Point(R.Right - 1, R.Bottom - 1), Point(R.Left, R.Bottom - 1)]);
 
     // Adjust Content Position for "Pressed" effect
     Types.OffsetRect(R, Ctx.GetScale(1), Ctx.GetScale(1));
@@ -263,23 +194,22 @@ begin
   begin
     // Standard 3D frame (Light on Top/Left, Shadow on Bottom/Right)
     ACanvas.Pen.Color := LightClr;
-    ACanvas.Polyline([Point(R.Left, R.Bottom - 1), Point(R.Left, R.Top),
-      Point(R.Right - 1, R.Top)]);
+    ACanvas.Polyline([Point(R.Left, R.Bottom - 1), Point(R.Left, R.Top), Point(R.Right - 1, R.Top)]);
     ACanvas.Pen.Color := ShadowClr;
-    ACanvas.Polyline([Point(R.Right - 1, R.Top), Point(R.Right - 1, R.Bottom - 1),
-      Point(R.Left, R.Bottom - 1)]);
+    ACanvas.Polyline([Point(R.Right - 1, R.Top), Point(R.Right - 1, R.Bottom - 1), Point(R.Left, R.Bottom - 1)]);
   end;
 end;
 
 procedure DrawDelphiTabStyle(ACanvas: TCanvas; var R: TRect; IsActive: Boolean;
-  const Ctx: TExtTabDrawContext; var FontColor: TColor; var Indent: Integer);
+  const Ctx: TExtTabDrawContext; var Options: TExtTabStyleOptions);
 var
   P: array[0..3] of TPoint;
   S: Integer;
   BaseClr: TColor;
 begin
-  Indent := 4;
-  FontColor := IfThen(IsActive, Ctx.ActiveFontColor, Ctx.InactiveFontColor);
+  Options.FontColor := IfThen(IsActive, Ctx.ActiveFontColor, Ctx.InactiveFontColor);
+  Options.Indent := Ctx.GetScale(4);
+  Options.ShowStripLine := True;
 
   S := Ctx.GetScale(3); // Angle slant amount
 
@@ -358,19 +288,17 @@ begin
 end;
 
 procedure DrawChromeTabStyle(ACanvas: TCanvas; var R: TRect; IsActive: Boolean;
-  const Ctx: TExtTabDrawContext; var FontColor: TColor; var Indent: Integer);
+  const Ctx: TExtTabDrawContext; var Options: TExtTabStyleOptions);
 var
   Radius: Integer;
   StripeBounds: TRect;
   BaseClr: TColor;
 begin
-  Indent := 5;
-  FontColor := IfThen(IsActive, Ctx.ActiveFontColor, Ctx.InactiveFontColor);
+  Options.FontColor := IfThen(IsActive, Ctx.ActiveFontColor, Ctx.InactiveFontColor);
+  Options.Indent := Ctx.GetScale(5);
+  Options.ShowStripLine := True;
 
-  if Ctx.Options.CornerRadius > 0 then
-    Radius := Ctx.GetScale(Ctx.Options.CornerRadius)
-  else
-    Radius := Ctx.GetScale(8);
+  Radius := Ctx.GetScale(8);
 
   // Background and hover
   if IsActive then
@@ -411,8 +339,7 @@ begin
   end;
 
   // Draw Tab (RoundRect with overlap to square the bottom)
-  if IsActive or Ctx.IsHoverTab or
-     (not IsActive and (Ctx.TabColor <> clNone)) then
+  if IsActive or Ctx.IsHoverTab or (not IsActive and (Ctx.TabColor <> clNone)) then
   begin
     ACanvas.Pen.Color := Ctx.BorderColor;
     case Ctx.TabPosition of
@@ -437,24 +364,23 @@ begin
   end;
 
   // Separators (For inactive non-hovered tabs without their own color border)
-  if not IsActive and not Ctx.IsHoverTab and
-     not Ctx.IsBeforeActiveTab and (Ctx.TabColor = clNone) then
+  if not IsActive and not Ctx.IsHoverTab and not Ctx.IsBeforeActiveTab and (Ctx.TabColor = clNone) then
   begin
     ACanvas.Pen.Color := Ctx.BorderColor;
     if Ctx.IsHorizontal then
-      ACanvas.Line(R.Right - 1, R.Top + Ctx.GetScale(6), R.Right - 1, R.Bottom - Ctx.GetScale(6))
+      ACanvas.Line(R.Right - 1, R.Top + Options.Indent, R.Right - 1, R.Bottom - Options.Indent)
     else
-      ACanvas.Line(R.Left + Ctx.GetScale(6), R.Bottom - 1, R.Right - Ctx.GetScale(6), R.Bottom - 1);
+      ACanvas.Line(R.Left + Options.Indent, R.Bottom - 1, R.Right - Options.Indent, R.Bottom - 1);
   end;
 
   // Accent line: use Tab.Color when set, otherwise fall back to clHighlight
-  if IsActive and (Ctx.TabStripeColor = clNone) and Ctx.Options.ShowActiveAccentStripe then
+  if IsActive and (Ctx.TabStripeColor = clNone) then
   begin
     ACanvas.Pen.Color := IfThen(Ctx.TabColor <> clNone, Ctx.ResolveColor(Ctx.TabColor), clHighlight);
     ACanvas.Pen.Width := Ctx.GetScale(3);
 
     StripeBounds := R;
-    InflateRect(StripeBounds, -Ctx.GetScale(5), -Ctx.GetScale(5));
+    InflateRect(StripeBounds, -Options.Indent, -Options.Indent);
 
     case Ctx.TabPosition of
       etpTop: ACanvas.Line(StripeBounds.Left, R.Top + 1, StripeBounds.Right, R.Top + 1);
@@ -467,19 +393,17 @@ begin
 end;
 
 procedure DrawMacOSTabStyle(ACanvas: TCanvas; var R: TRect; IsActive: Boolean;
-  const Ctx: TExtTabDrawContext; var FontColor: TColor; var Indent: Integer);
+  const Ctx: TExtTabDrawContext; var Options: TExtTabStyleOptions);
 var
   Radius: Integer;
   DrawR: TRect;
   BaseClr: TColor;
 begin
-  Indent := 6;
-  FontColor := IfThen(IsActive, clWindowText, Ctx.InactiveFontColor);
+  Options.FontColor := IfThen(IsActive, clWindowText, Ctx.InactiveFontColor);
+  Options.Indent := Ctx.GetScale(6);
+  Options.ShowStripLine := False;
 
-  if Ctx.Options.CornerRadius > 0 then
-    Radius := Ctx.GetScale(Ctx.Options.CornerRadius)
-  else
-    Radius := Ctx.GetScale(6);
+  Radius := Options.Indent;
   DrawR := R;
 
   // Floating segment effect
@@ -535,9 +459,10 @@ begin
 end;
 
 procedure DrawStripLineStyle(ACanvas: TCanvas; const View: TRect;
-  const Ctx: TExtTabDrawContext; AClientWidth, AClientHeight: Integer);
+  const Ctx: TExtTabDrawContext; const Options: TExtTabStyleOptions;
+  AClientWidth, AClientHeight: Integer);
 begin
-  if not Ctx.Options.ShowStripLine then Exit;
+  if not Options.ShowStripLine then Exit;
 
   ACanvas.Pen.Color := Ctx.BorderColor;
   ACanvas.Pen.Width := 1;
