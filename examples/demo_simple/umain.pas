@@ -30,8 +30,8 @@ type
     procedure chbCustomButtonChange(Sender: TObject);
     procedure ExtTabCtrl1DrawButton(Sender: TObject; ACanvas: TCanvas; ARect: TRect;
       AButtonType: TExtButtonType; ATab: TExtTab; IsActive, IsHover: Boolean; var Skip: Boolean);
-    procedure ExtTabCtrl1DrawTab(Sender: TObject; ACanvas: TCanvas;
-      ARect: TRect; IsActive, IsHover: Boolean; var FontColor: TColor; var Indent: Integer; var Skip: Boolean);
+    procedure ExtTabCtrl1DrawTab(Sender: TObject; ACanvas: TCanvas; ARect: TRect;
+      IsActive, IsHover: Boolean; var Options: TExtTabStyleOptions; var Skip: Boolean);
     procedure ExtTabCtrl1ImportTab(Sender: TObject; Tab: TExtTab; AObject: TObject);
     procedure ExtTabCtrl1TabReordered(Sender: TObject; OldIndex, NewIndex: Integer);
     procedure FormCreate(Sender: TObject);
@@ -217,9 +217,8 @@ begin
   end;
 end;
 
-procedure TForm1.ExtTabCtrl1DrawTab(Sender: TObject; ACanvas: TCanvas;
-  ARect: TRect; IsActive, IsHover: Boolean; var FontColor: TColor; var Indent: Integer;
-  var Skip: Boolean);
+procedure TForm1.ExtTabCtrl1DrawTab(Sender: TObject; ACanvas: TCanvas; ARect: TRect;
+  IsActive, IsHover: Boolean; var Options: TExtTabStyleOptions; var Skip: Boolean);
 const
   // XP-style palette
   ClrActiveBase   = $0030AD39; // active tab: green
@@ -309,8 +308,9 @@ begin
   end;
 
   // XP taskbar buttons use white text in every state
-  FontColor := clWhite;
-  Indent := 2;
+  Options.FontColor := clWhite;
+  Options.Indent := 2;
+  Options.ShowStripLine := True;
   Skip := False;
 end;
 
