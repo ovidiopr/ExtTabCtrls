@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls,
-  ExtTabCtrl, ExtTabCtrlStyles, LCLIntf, LResources, Menus, Types, Math;
+  ExtTabCtrl, ExtTabCtrlDrawing, LCLIntf, LResources, Menus, Types, Math;
 
 type
   { TForm1 }
