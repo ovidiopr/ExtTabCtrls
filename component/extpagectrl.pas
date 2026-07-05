@@ -433,7 +433,14 @@ begin
 end;
 
 destructor TCustomExtPageCtrl.Destroy;
+var
+  i: Integer;
 begin
+  // TExtPage instances are not owned by this control
+  if Assigned(FPageList) then
+    for i := 0 to FPageList.Count - 1 do
+      TExtPage(FPageList[i]).UnlinkTab;
+
   FreeAndNil(FPageList);
   inherited Destroy;
 end;
