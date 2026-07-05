@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Controls, Graphics, LCLType, Types, Math, LResources,
-  Contnrs, Forms, ExtCtrls, ImgList, ExtTabCtrl, ExtTabCtrlStyles
+  Contnrs, Forms, ExtCtrls, ImgList, ExtTabCtrl, ExtTabCtrlDrawing
   {$IFDEF LCLDesign}, PropEdits{$ENDIF};
 
 type

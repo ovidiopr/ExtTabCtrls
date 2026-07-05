@@ -7,7 +7,7 @@ interface
 uses
   Classes, SysUtils, Controls, FPImage, GraphType, Graphics, Buttons, LCLType,
   Types, Math, LResources, LCLIntf, ImgList, LMessages, Forms, Menus,
-  LazMethodList, ExtTabCtrlStyles{$IFDEF LCLDesign}, PropEdits{$ENDIF};
+  LazMethodList, ExtTabCtrlDrawing{$IFDEF LCLDesign}, PropEdits{$ENDIF};
 
 type
   TExtTabOption = (etoActivateNewTab, etoShowCloseButton, etoShowAddButton,
