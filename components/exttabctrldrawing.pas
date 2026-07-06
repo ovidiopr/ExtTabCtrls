@@ -605,7 +605,7 @@ end;
 procedure DrawChromeTabStyle(ACanvas: TCanvas; var R: TRect; IsActive: Boolean;
   const Ctx: TExtTabDrawContext; var Options: TExtTabStyleOptions);
 var
-  Radius: Integer;
+  Radius, d: Integer;
   StripeBounds: TRect;
   BaseClr: TColor;
 begin
@@ -693,15 +693,16 @@ begin
   begin
     ACanvas.Pen.Color := IfThen(Ctx.TabColor <> clNone, Ctx.ResolveColor(Ctx.TabColor), clHighlight);
     ACanvas.Pen.Width := Ctx.GetScale(3);
+    d := 1 + ACanvas.Pen.Width div 2;
 
     StripeBounds := R;
     InflateRect(StripeBounds, -Options.Indent, -Options.Indent);
 
     case Ctx.TabPosition of
-      etpTop: ACanvas.Line(StripeBounds.Left, R.Top + 1, StripeBounds.Right, R.Top + 1);
-      etpBottom: ACanvas.Line(StripeBounds.Left, R.Bottom - 2, StripeBounds.Right, R.Bottom - 2);
-      etpLeft: ACanvas.Line(R.Left + 1, StripeBounds.Top, R.Left + 1, StripeBounds.Bottom);
-      etpRight: ACanvas.Line(R.Right - 2, StripeBounds.Top, R.Right - 2, StripeBounds.Bottom);
+      etpTop: ACanvas.Line(StripeBounds.Left, R.Top + d, StripeBounds.Right, R.Top + d);
+      etpBottom: ACanvas.Line(StripeBounds.Left, R.Bottom - d - 1, StripeBounds.Right, R.Bottom - d - 1);
+      etpLeft: ACanvas.Line(R.Left + d, StripeBounds.Top, R.Left + d, StripeBounds.Bottom);
+      etpRight: ACanvas.Line(R.Right - d - 1, StripeBounds.Top, R.Right - d - 1, StripeBounds.Bottom);
     end;
     ACanvas.Pen.Width := 1;
   end;
