@@ -658,6 +658,13 @@ end;
 
 procedure TCustomExtPageCtrl.InternalTabDeleted(Sender: TObject);
 begin
+  // Numeric coincidence (but it can be the wrong page), invalidate
+  if FPageIndex = TabIndex then
+    FPageIndex := -1;
+
+  // TabIndex is now final, force the page switch
+  SetPageIndex(TabIndex);
+
   // The tab has been removed from FTabs by TCustomExtTabCtrl.DeleteTab
   if Assigned(FUserOnTabDeleted) then
     FUserOnTabDeleted(Sender);
