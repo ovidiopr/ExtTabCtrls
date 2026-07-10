@@ -3037,7 +3037,7 @@ begin
         Self.BeginUpdate; // Batch the internal layout changes
         try
           FTabs.Items[FDragIndex].Index := FDragTargetIndex;
-          FTabIndex := FDragTargetIndex;
+          TabIndex := FDragTargetIndex;
           FLayoutDirty := True;
         finally
           Self.EndUpdate;
