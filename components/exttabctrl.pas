@@ -2518,6 +2518,7 @@ var
   ImgW, ImgH: Integer;
 begin
   if not FLayoutDirty then Exit;
+  if (csLoading in ComponentState) or not HandleAllocated then Exit;
   FLayoutDirty := False;
 
   Canvas.Font.Assign(Font);
