@@ -2,12 +2,12 @@
   "package_name": "ExtTabCtrls",
   "display_name": "ExtTabCtrls",
   "category": "Visual Controls",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "author": "Ovidio Y. Peña Rodríguez",
   "description": "Feature-rich custom tab and page controls for Lazarus including Chrome, MacOS, and Delphi styles with drag-reordering and vertical orientation support.",
   "license": "LGPL-2.1-or-later",
   "homepage_url": "https://github.com/ovidiopr/ExtTabCtrls",
-  "download_url": "https://github.com/ovidiopr/ExtTabCtrls/archive/refs/tags/v1.2.0.zip",
+  "download_url": "https://github.com/ovidiopr/ExtTabCtrls/archive/refs/tags/v1.3.0.zip",
   "packages": [
     {
       "filename": "exttabctrls.lpk",
