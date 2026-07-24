@@ -146,13 +146,19 @@ type
     procedure InsertControl(AControl: TControl; Index: Integer); override;
 
     function AddPage(const ACaption: String): TExtPage; virtual;
+    function InsertPage(Index: Integer; const ACaption: String): TExtPage; virtual;
     procedure DeletePage(Index: Integer); virtual;
     procedure MovePage(OldIndex, NewIndex: Integer); virtual;
+    procedure ClearPages;
 
     function AddTab(const ACaption: String; AData: TObject = nil): TExtTab; override;
+    function InsertTab(Index: Integer; const ACaption: String; AData: TObject = nil): TExtTab; override;
     procedure DeleteTab(Index: Integer); override;
+    procedure MoveTab(OldIndex, NewIndex: Integer); override;
 
-    function IndexOfPage(APage: TExtPage): Integer;
+    function IndexOfPage(APage: TExtPage): Integer; overload;
+    function IndexOfPage(const ACaption: String): Integer; overload;
+    function FindPage(const ACaption: String): TExtPage;
 
     property ActivePage: TExtPage read GetActivePage;
     property Page[Index: Integer]: TExtPage read GetPage;
@@ -576,6 +582,28 @@ begin
     Result := -1;
 end;
 
+function TCustomExtPageCtrl.IndexOfPage(const ACaption: String): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  if not Assigned(FPageList) then Exit;
+  for i := 0 to FPageList.Count - 1 do
+    if SameText(TExtPage(FPageList[i]).Tab.Caption, ACaption) then
+      Exit(i);
+end;
+
+function TCustomExtPageCtrl.FindPage(const ACaption: String): TExtPage;
+var
+  Idx: Integer;
+begin
+  Idx := IndexOfPage(ACaption);
+  if Idx >= 0 then
+    Result := GetPage(Idx)
+  else
+    Result := nil;
+end;
+
 procedure TCustomExtPageCtrl.LayoutPages;
 var
   i, B, TBT: Integer;
@@ -781,6 +809,79 @@ begin
   Result := NewPage;
 end;
 
+function TCustomExtPageCtrl.InsertPage(Index: Integer; const ACaption: String): TExtPage;
+var
+  NewTab: TExtTab;
+  NewPage: TExtPage;
+  OwnerComp: TComponent;
+begin
+  Result := nil;
+  NewPage := nil;
+
+  if not Assigned(FPageList) then Exit;
+  if Index < 0 then Index := 0;
+  if Index > FPageList.Count then Index := FPageList.Count;
+
+  FIsSyncing := True;
+  try
+    NewTab := inherited InsertTab(Index, ACaption);
+  finally
+    FIsSyncing := False;
+  end;
+  if NewTab = nil then Exit;
+
+  OwnerComp := Owner;
+  if OwnerComp = nil then OwnerComp := Self;
+
+  try
+    FIsSyncing := True;
+    try
+      NewPage := TExtPage.Create(OwnerComp);
+      NewPage.FPageCtrl := Self;
+      FPageList.Insert(Index, NewPage);
+      NewPage.Name := GetUniquePageName;
+      NewPage.LinkTab(NewTab);
+      NewPage.Parent := Self;
+      NewPage.Align := alClient;
+      NewPage.Visible := False;
+      NewPage.ControlStyle := NewPage.ControlStyle + [csNoDesignVisible];
+    finally
+      FIsSyncing := False;
+    end;
+  except
+    // Roll back both the page and the tab we just created if anything fails
+    FIsSyncing := True;
+    try
+      if Assigned(NewPage) then
+      begin
+        FPageList.Remove(NewPage);
+        NewPage.UnlinkTab;
+        NewPage.FPageCtrl := nil;
+        NewPage.Parent := nil;
+        NewPage.Free;
+      end;
+      inherited DeleteTab(NewTab.Index);
+    finally
+      FIsSyncing := False;
+    end;
+    raise;
+  end;
+
+  if (FPageList.Count = 1) and (TabIndex < 0) then
+    SetPageIndex(0)
+  else if TabIndex = Index then
+    SetPageIndex(TabIndex)
+  else
+    FPageIndex := TabIndex;
+
+  LayoutPages;
+
+  if Assigned(FOnPageAdded) then
+    FOnPageAdded(Self, NewPage);
+
+  Result := NewPage;
+end;
+
 procedure TCustomExtPageCtrl.DeletePage(Index: Integer);
 begin
   if (Index < 0) or (not Assigned(FPageList)) or (Index >= FPageList.Count) then Exit;
@@ -806,6 +907,13 @@ begin
   Invalidate;
 end;
 
+procedure TCustomExtPageCtrl.ClearPages;
+begin
+  // DeleteTab is overridden to route through DeletePage
+  // the inherited loop cleans up FPageList
+  inherited ClearTabs;
+end;
+
 { Compatibility shims }
 
 function TCustomExtPageCtrl.AddTab(const ACaption: String; AData: TObject): TExtTab;
@@ -822,9 +930,29 @@ begin
     Result := nil;
 end;
 
+function TCustomExtPageCtrl.InsertTab(Index: Integer; const ACaption: String; AData: TObject): TExtTab;
+var
+  P: TExtPage;
+begin
+  P := InsertPage(Index, ACaption);
+  if Assigned(P) then
+  begin
+    if Assigned(AData) then P.Tab.Data := AData;
+    Result := P.Tab;
+  end
+  else
+    Result := nil;
+end;
+
 procedure TCustomExtPageCtrl.DeleteTab(Index: Integer);
 begin
   DeletePage(Index);
+end;
+
+procedure TCustomExtPageCtrl.MoveTab(OldIndex, NewIndex: Integer);
+begin
+  // MovePage keeps FPageList/FPageIndex in lockstep with the tab move
+  MovePage(OldIndex, NewIndex);
 end;
 
 { InsertControl: redirect component drops to the active page }

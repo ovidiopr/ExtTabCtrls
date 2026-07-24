@@ -380,7 +380,12 @@ type
     function NextVisibleTab(FromIndex: Integer): Integer; virtual;
     function PrevVisibleTab(FromIndex: Integer): Integer; virtual;
     function AddTab(const ACaption: String; AData: TObject = nil): TExtTab; virtual;
+    function InsertTab(Index: Integer; const ACaption: String; AData: TObject = nil): TExtTab; virtual;
     procedure DeleteTab(Index: Integer); virtual;
+    procedure MoveTab(OldIndex, NewIndex: Integer); virtual;
+    procedure ClearTabs; virtual;
+    function IndexOfTab(const ACaption: String): Integer;
+    function FindTab(const ACaption: String): TExtTab;
     procedure ImportFromStrings(Source: TStrings; ClearExisting: Boolean = True); virtual;
     procedure SetDesignTabIndex(AValue: Integer); virtual;
   protected
@@ -3432,6 +3437,94 @@ begin
   end;
 end;
 
+function TCustomExtTabCtrl.InsertTab(Index: Integer; const ACaption: String; AData: TObject): TExtTab;
+var
+  Allow: Boolean;
+  Cap: String;
+  Data: TObject;
+  OldIndex, ShiftedIndex, NewActiveIndex: Integer;
+  ActivateNew: Boolean;
+begin
+  Result := nil;
+  if FInternalChange > 0 then Exit;
+
+  if Index < 0 then Index := 0;
+  if Index > FTabs.Count then Index := FTabs.Count;
+
+  Cap := ACaption;
+  Data := AData;
+  Allow := True;
+
+  if not FImportActive then
+  begin
+    if Assigned(FOnTabCreating) then
+      FOnTabCreating(Self, Cap, Data, Allow);
+    // User callback may have destroyed or mutated us --> revalidate
+    if csDestroying in ComponentState then Exit;
+  end;
+
+  if not Allow then Exit;
+
+  OldIndex := FTabIndex;
+  ActivateNew := etoActivateNewTab in FTabOptions;
+
+  // If the new tab won't become the active, determine whether the
+  // currently active tab is about to be renumbered by the insertion, and
+  // give listeners a chance to react before the structural change happens
+  ShiftedIndex := OldIndex;
+  if (not ActivateNew) and (OldIndex >= 0) and (OldIndex >= Index) then
+  begin
+    ShiftedIndex := OldIndex + 1;
+    Allow := True;
+    if Assigned(FOnTabChanging) then
+    begin
+      FOnTabChanging(Self, OldIndex, ShiftedIndex, Allow);
+      if csDestroying in ComponentState then Exit;
+    end;
+    if not Allow then Exit;
+  end;
+
+  NewActiveIndex := -1;
+  BeginInternalChange;
+  try
+    Result := FTabs.Add(Cap);
+    Result.Data := Data;
+
+    if Index < Result.Index then
+      Result.Index := Index; // shifts existing tabs at [Index..] up by one
+
+    if ShiftedIndex <> OldIndex then
+      FTabIndex := ShiftedIndex;
+
+    // Cancel any in-progress drag / hover: indexes are now stale
+    CancelDrag;
+    FHoverTab := -1;
+    FHoverCloseTab := -1;
+
+    // Defer layout: if inside BeginUpdate, CalcLayout will fire in EndUpdate
+    InvalidateLayout;
+
+    if ActivateNew then
+      NewActiveIndex := Result.Index;
+  finally
+    EndInternalChange;
+  end;
+
+  if NewActiveIndex >= 0 then
+    SetTabIndex(NewActiveIndex)
+  else if (ShiftedIndex <> OldIndex) and Assigned(FOnTabChanged) then
+    FOnTabChanged(Self, FTabIndex);
+
+  if not FImportActive then
+  begin
+    if Assigned(FOnTabCreated) then
+    begin
+      FOnTabCreated(Self);
+      if csDestroying in ComponentState then Exit;
+    end;
+  end;
+end;
+
 procedure TCustomExtTabCtrl.DeleteTab(Index: Integer);
 var
   Allow: Boolean;
@@ -3522,6 +3615,79 @@ begin
     FOnTabChanged(Self, FTabIndex);
 
   InvalidateLayout;
+end;
+
+procedure TCustomExtTabCtrl.MoveTab(OldIndex, NewIndex: Integer);
+var
+  Allow: Boolean;
+begin
+  if FInternalChange > 0 then Exit;
+  if (OldIndex < 0) or (OldIndex >= FTabs.Count) then Exit;
+  if (NewIndex < 0) or (NewIndex >= FTabs.Count) then Exit;
+  if OldIndex = NewIndex then Exit;
+
+  Allow := True;
+  if Assigned(FOnTabReordering) then
+    FOnTabReordering(Self, OldIndex, NewIndex, Allow);
+  if csDestroying in ComponentState then Exit;
+  if not Allow then Exit;
+
+  BeginUpdate;
+  try
+    FTabs.Items[OldIndex].Index := NewIndex;
+
+    // Renumber the active index if it was affected by the move
+    if FTabIndex = OldIndex then
+      FTabIndex := NewIndex
+    else if (OldIndex < FTabIndex) and (NewIndex >= FTabIndex) then
+      Dec(FTabIndex)
+    else if (OldIndex > FTabIndex) and (NewIndex <= FTabIndex) then
+      Inc(FTabIndex);
+  finally
+    EndUpdate;
+  end;
+
+  if Assigned(FOnTabReordered) then
+    FOnTabReordered(Self, OldIndex, NewIndex);
+end;
+
+procedure TCustomExtTabCtrl.ClearTabs;
+var
+  PrevCount: Integer;
+begin
+  BeginUpdate;
+  try
+    while FTabs.Count > 0 do
+    begin
+      PrevCount := FTabs.Count;
+      DeleteTab(FTabs.Count - 1);
+      // A handler vetoed the deletion (OnTabDeleting)
+      if FTabs.Count = PrevCount then Break;
+    end;
+  finally
+    EndUpdate;
+  end;
+end;
+
+function TCustomExtTabCtrl.IndexOfTab(const ACaption: String): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  for i := 0 to FTabs.Count - 1 do
+    if SameText(FTabs[i].Caption, ACaption) then
+      Exit(i);
+end;
+
+function TCustomExtTabCtrl.FindTab(const ACaption: String): TExtTab;
+var
+  Idx: Integer;
+begin
+  Idx := IndexOfTab(ACaption);
+  if Idx >= 0 then
+    Result := FTabs[Idx]
+  else
+    Result := nil;
 end;
 
 procedure TCustomExtTabCtrl.ImportFromStrings(Source: TStrings; ClearExisting: Boolean = True);
