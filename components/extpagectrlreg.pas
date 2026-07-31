@@ -97,7 +97,6 @@ begin
             GlobalDesignHook.DeletePersistent(TPersistent(CurrentTab));
             GlobalDesignHook.DeletePersistent(TPersistent(CurrentPage));
           end;
-          //PageControl.DeletePage(TargetIndex);
         end;
       end;
 

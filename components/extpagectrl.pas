@@ -239,6 +239,7 @@ begin
   Align := alClient;
   Visible := False;
   Caption := '';
+  ParentColor := True;
 end;
 
 destructor TExtPage.Destroy;
@@ -535,7 +536,7 @@ begin
   OldPage := GetPage(FPageIndex);
   NewPage := GetPage(AValue);
 
-  // Push the old page to the back of the z-order
+  // Hide the old page and exclude it from the design-time page list
   if Assigned(OldPage) then
   begin
     OldPage.ControlStyle := OldPage.ControlStyle + [csNoDesignVisible];
@@ -546,7 +547,7 @@ begin
 
   LayoutPages;
 
-  // Bring to front the new page
+  // Show the new page and re-include it in the design-time page list
   if Assigned(NewPage) then
   begin
     if Assigned(NewPage.FOnBeforeShow) then
@@ -1066,7 +1067,6 @@ end;
 procedure TCustomExtPageCtrl.NormalizeState;
 var
   i: Integer;
-  Found: Boolean;
   P: TExtPage;
   NewIdx: Integer;
 begin
@@ -1081,13 +1081,10 @@ begin
     while i >= 0 do
     begin
       P := TExtPage(FPageList[i]);
-      Found := False;
 
-      // Check if this page's FTab is still in the Tabs list
-      if Assigned(P.FTab) then
-        if (P.FTab.Collection <> nil) then Found := True;
-
-      if not Found then
+      // Only remove pages whose FTab was linked and has since dropped out
+      // of the Tabs collection
+      if Assigned(P.FTab) and (P.FTab.Collection = nil) then
       begin
         FPageList.Delete(i);
         P.UnlinkTab;
