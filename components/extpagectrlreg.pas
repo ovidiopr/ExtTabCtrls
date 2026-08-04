@@ -31,7 +31,7 @@ function TExtPageCtrlEditor.GetVerb(Index: Integer): String;
 var
   PageCtrl: TExtPageCtrl;
 begin
-  PageCtrl := TExtPageCtrl(Component);
+  PageCtrl := Component as TExtPageCtrl;
 
   case Index of
     0: Result := 'Add Page';
@@ -58,8 +58,7 @@ var
 
   procedure RebuildDesignerTabTree(Ctrl: TExtPageCtrl; OldIdx, NewIdx: Integer);
   begin
-    Ctrl.Page[OldIdx].Tab.Index := NewIdx;
-    Ctrl.PageIndex := NewIdx;
+    Ctrl.MovePage(OldIdx, NewIdx);
 
     Designer.Modified;
     if Assigned(GlobalDesignHook) then
@@ -70,7 +69,7 @@ var
   end;
 
 begin
-  PageControl := TExtPageCtrl(Component);
+  PageControl := Component as TExtPageCtrl;
   TargetIndex := PageControl.PageIndex;
 
   case Index of

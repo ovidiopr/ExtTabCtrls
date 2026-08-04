@@ -506,6 +506,7 @@ begin
   if Source is TExtButtonImageIndexes then
   begin
     FImgIndex := TExtButtonImageIndexes(Source).FImgIndex;
+    FSavedIndex := TExtButtonImageIndexes(Source).FSavedIndex;
     if Assigned(FOnChange) then FOnChange(Self);
   end
   else
@@ -1435,7 +1436,10 @@ var
 begin
   if AValue < 0 then AValue := 0;
   if FMinCaptionLen = AValue then Exit;
-  FMinCaptionLen := Min(FMaxCaptionLen, AValue);
+  if csLoading in ComponentState then
+    FMinCaptionLen := AValue
+  else
+    FMinCaptionLen := Min(FMaxCaptionLen, AValue);
   // Display text may change length, bust all text-width caches
   for i := 0 to FTabs.Count - 1 do
   begin
@@ -1451,7 +1455,10 @@ var
 begin
   if AValue < 0 then AValue := 0;
   if FMaxCaptionLen = AValue then Exit;
-  FMaxCaptionLen := Max(FMinCaptionLen, AValue);
+  if csLoading in ComponentState then
+    FMaxCaptionLen := AValue
+  else
+    FMaxCaptionLen := Max(FMinCaptionLen, AValue);
   for i := 0 to FTabs.Count - 1 do
   begin
     FTabs[i].FTextWidth := -1;
@@ -2132,7 +2139,7 @@ begin
       // Vertical logic: adjust Y based on whether it's tpLeft or tpRight
       ImgPos := Point(R.Left + (R.Width - ImgW) div 2,
                   IfThen(FTabPosition = etpLeft, TextRect.Bottom + GetScale(cImageSpacing),
-                                                TextRect.Top - GetScale(cImageSpacing) - ImgH));
+                                                 TextRect.Top - GetScale(cImageSpacing) - ImgH));
 
     DrawTabImage(ACanvas, Tab, ImgPos.X, ImgPos.Y);
   end;
@@ -3099,8 +3106,7 @@ begin
   Invalidate;
 end;
 
-function TCustomExtTabCtrl.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer;
-  MousePos: TPoint): Boolean;
+function TCustomExtTabCtrl.DoMouseWheel(Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint): Boolean;
 var
   Candidate: Integer;
   LocalPos: TPoint;
@@ -3217,6 +3223,10 @@ end;
 procedure TCustomExtTabCtrl.Loaded;
 begin
   inherited Loaded;
+
+  // Both bounds have now been streamed in, ensure FMinCaptionLen <= FMaxCaptionLen
+  if FMinCaptionLen > FMaxCaptionLen then
+    FMinCaptionLen := FMaxCaptionLen;
 
   // Sync hints
   ButtonHintsChanged(Self);
@@ -3808,6 +3818,7 @@ begin
 
   ShowHint := True;
   DoubleBuffered := True;
+  Color := clForm;
   FTabs := TExtTabs.Create(Self);
   FTabIndex := -1;
   FTabStyle := etsFlat;

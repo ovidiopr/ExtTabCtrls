@@ -458,33 +458,18 @@ function TCustomExtPageCtrl.GetUniquePageName: String;
 const
   BaseName = 'ExtPage';
 var
-  ExistingNames: TStringList;
-  i, Suffix: Integer;
+  Suffix: Integer;
   OwnerComp: TComponent;
 begin
   OwnerComp := Owner;
   if OwnerComp = nil then OwnerComp := Self;
 
-  // Collect all used names
-  ExistingNames := TStringList.Create;
-  try
-    ExistingNames.CaseSensitive := False;
-    ExistingNames.Sorted := True;
-    ExistingNames.Duplicates := dupIgnore;
-    for i := 0 to OwnerComp.ComponentCount - 1 do
-      if OwnerComp.Components[i].Name <> '' then
-        ExistingNames.Add(OwnerComp.Components[i].Name);
-
-    // Assign a unique name
-    Suffix := 1;
+  Suffix := 1;
+  Result := BaseName + IntToStr(Suffix);
+  while OwnerComp.FindComponent(Result) <> nil do
+  begin
+    Inc(Suffix);
     Result := BaseName + IntToStr(Suffix);
-    while ExistingNames.IndexOf(Result) >= 0 do
-    begin
-      Inc(Suffix);
-      Result := BaseName + IntToStr(Suffix);
-    end;
-  finally
-    ExistingNames.Free;
   end;
 end;
 
@@ -899,13 +884,10 @@ begin
   // Move the TExtTab item; InternalTabReordered will then move FPageList
   FIsSyncing := True;
   try
-    Tabs[OldIndex].Index := NewIndex;
-    FPageList.Move(OldIndex, NewIndex);
-    FPageIndex := TabIndex;
+    inherited MoveTab(OldIndex, NewIndex);
   finally
     FIsSyncing := False;
   end;
-  Invalidate;
 end;
 
 procedure TCustomExtPageCtrl.ClearPages;
