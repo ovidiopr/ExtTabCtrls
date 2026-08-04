@@ -806,8 +806,10 @@ end;
 procedure TExtTab.SetImage(AValue: TBitmap);
 begin
   if FImage = AValue then Exit;
-  FreeAndNil(FImage);
-  FImage := AValue;
+  if AValue = nil then
+    FreeAndNil(FImage)
+  else
+    GetImage.Assign(AValue);
   FTextWidth := -1;
   Redraw(Self);
   if Assigned(FOwnerCtrl) then FOwnerCtrl.UpdateTabSizeForImages;
@@ -1153,7 +1155,7 @@ end;
 
 function TCustomExtTabCtrl.IsStoredTabSize: Boolean;
 begin
-  Result := FTabSize <> Scale96ToFont(cDefaultTabSize);
+  Result := FTabSize <> GetScale(cDefaultTabSize);
 end;
 
 procedure TCustomExtTabCtrl.AddBtnClick(Sender: TObject);
@@ -1433,8 +1435,8 @@ var
 begin
   if AValue < 0 then AValue := 0;
   if FMinCaptionLen = AValue then Exit;
-  FMinCaptionLen := AValue;
-  // Display text may change length — bust all text-width caches
+  FMinCaptionLen := Min(FMaxCaptionLen, AValue);
+  // Display text may change length, bust all text-width caches
   for i := 0 to FTabs.Count - 1 do
   begin
     FTabs[i].FTextWidth := -1;
@@ -1449,7 +1451,7 @@ var
 begin
   if AValue < 0 then AValue := 0;
   if FMaxCaptionLen = AValue then Exit;
-  FMaxCaptionLen := AValue;
+  FMaxCaptionLen := Max(FMinCaptionLen, AValue);
   for i := 0 to FTabs.Count - 1 do
   begin
     FTabs[i].FTextWidth := -1;
@@ -1633,7 +1635,7 @@ var
 begin
   if (csDestroying in ComponentState) or not HandleAllocated then Exit;
 
-  imgBorder := Scale96ToFont(2);
+  imgBorder := GetScale(2);
 
   ScrollPrevW := GetIconExtent(FButtonImageIndexes.ScrollPrevIndex, FImagesWidth.PrevWidth, True);
   ScrollPrevH := GetIconExtent(FButtonImageIndexes.ScrollPrevIndex, FImagesWidth.PrevWidth, False);
@@ -1890,7 +1892,7 @@ begin
   if not PtInRect(View, Point(X, Y)) then Exit;
   P := ViewToContent(Point(X, Y), View);
 
-  for i := 0 to FTabs.Count - 1 do
+  for i := FTabs.Count - 1 downto 0 do
   begin
     if not FTabs[i].Visible then Continue;
     if PtInRect(FTabs[i].FBoundRect, P) then
@@ -2423,8 +2425,8 @@ begin
     Result.TabColor := Tab.Color;
     Result.TabStripeColor := Tab.StripeColor;
     Result.IsHoverTab := (Tab.Index = FHoverTab);
-    Result.IsBeforeActiveTab := (Tab.Index = FTabIndex - 1);
-    Result.IsLastTab := (Tab.Index = FTabs.Count - 1);
+    Result.IsBeforeActiveTab := (FTabIndex >= 0) and (PrevVisibleTab(FTabIndex) = Tab.Index);
+    Result.IsLastTab := (NextVisibleTab(Tab.Index) = -1);
   end;
 end;
 
@@ -2433,10 +2435,10 @@ end;
 function TCustomExtTabCtrl.GetDisplayCaption(Tab: TExtTab): String;
 const
   EllipsisStr = '...';
-  TailLen = 5;
+  MaxTailLen = 5;
 var
   S: String;
-  HeadLen: Integer;
+  HeadLen, TailLen, Budget: Integer;
 begin
   S := Tab.Caption;
 
@@ -2447,9 +2449,17 @@ begin
   // Maximum length: middle ellipsis
   if (FMaxCaptionLen > 0) and (Length(S) > FMaxCaptionLen) then
   begin
-    // Head fills everything left after reserving tail + ellipsis
-    HeadLen := Max(1, FMaxCaptionLen - TailLen - Length(EllipsisStr));
-    S := Copy(S, 1, HeadLen) + EllipsisStr + Copy(S, Length(S) - TailLen + 1, TailLen);
+    if FMaxCaptionLen <= Length(EllipsisStr) then
+      // No room for a head/tail split alongside the ellipsis: hard-truncate
+      S := Copy(S, 1, FMaxCaptionLen)
+    else
+    begin
+      // Split what's left after reserving the ellipsis between head and tail
+      Budget := FMaxCaptionLen - Length(EllipsisStr);
+      TailLen := Min(MaxTailLen, Budget div 2);
+      HeadLen := Max(1, Budget - TailLen);
+      S := Copy(S, 1, HeadLen) + EllipsisStr + Copy(S, Length(S) - TailLen + 1, TailLen);
+    end;
   end;
 
   Result := S;
@@ -3331,7 +3341,6 @@ begin
   Inc(MinStrip, GetScale(cContentIndent)*2);
 
   // Grow the tab strip if it is currently too small
-  MinStrip := MinStrip div GetScale(1);
   if FTabSize < MinStrip then
   begin
     FTabSize := MinStrip;
@@ -3803,7 +3812,7 @@ begin
   FTabIndex := -1;
   FTabStyle := etsFlat;
   FTabPosition := etpTop;
-  FTabSize := Scale96ToFont(cDefaultTabSize);
+  FTabSize := GetScale(cDefaultTabSize);
   FTabOptions := [etoActivateNewTab, etoShowCloseButton, etoShowAddButton,
                   etoCloseOnMiddleClick, etoAllowDragReorder, etoGetFocus,
                   etoShowFocusRect];
