@@ -1,4 +1,4 @@
-# [ExtTabCtrl](README.md) ExtPageCtrl
+# [![TExtTabCtrl](images/TExtTabCtrl_150.png)ExtTabCtrl](README.md) ![TExtPageCtrl](images/TExtPageCtrl_150.png)ExtPageCtrl
 
 `TExtPageCtrl` pairs the `TExtTabCtrl` tab strip with an actual content page per tab — a drop-in alternative to `TPageControl`. It's built on top of `TExtTabCtrl`, so everything in the main [README](README.md) (tab styles, positions, images, close/add buttons, scrolling, drag-reorder, keyboard navigation, `OnDrawTab`/`OnDrawButton`, etc.) still applies. This document only covers what's specific to the page control.
 

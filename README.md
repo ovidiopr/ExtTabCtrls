@@ -1,14 +1,6 @@
-# ExtTabCtrl [ExtPageCtrl](EXTPAGECTRL.md)
+# ![TExtTabCtrl](images/TExtTabCtrl_150.png)ExtTabCtrl [![TExtPageCtrl](images/TExtPageCtrl_150.png)ExtPageCtrl](EXTPAGECTRL.md)
 
 A feature-rich custom tab control for [Lazarus](https://www.lazarus-ide.org/) / Free Pascal, including Chrome, MacOS, and Delphi styles with drag-reordering and vertical orientation support. It can be used as a replacement for `TPageControl` and `TTabControl`.
-
----
-
-## Disclaimer
-
-> I am not a professional programmer. This component is a hobby project, written for my own use and shared in the hope that others may find it useful. It has been developed and tested to the best of my ability, but it comes with **no warranty of any kind**. Use it at your own risk. Bug reports and suggestions are welcome, but I cannot guarantee timely responses or fixes.
-
----
 
 ## Features
 
@@ -259,10 +251,14 @@ The `Data: TObject` property is a non-owning reference. The component will **nev
 
 ## License
 
-This component is released under the **GNU Lesser General Public License v2.1 or later (LGPL-2.1-or-later)**.
+These components are released under the **GNU Lesser General Public License v2.1 or later (LGPL-2.1-or-later)**.
 
-You are free to use, study, modify, and redistribute it under the terms of the LGPL. If you distribute a modified version of this library component, you must do so under the same license.
+You are free to use, study, modify, and redistribute them under the terms of the LGPL. If you distribute a modified version of these library components, you must do so under the same license.
 
 See [https://www.gnu.org/licenses/lgpl-2.1.html](https://www.gnu.org/licenses/lgpl-2.1.html) for the full license text.
 
-> **Note for application developers:** `ExtTabCtrl` is licensed under the LGPL with the same linking exception as `Free Pascal` and `Lazarus`. This allows the component to be linked into commercial and closed-source applications without disclosing your overall application's source code. Only modifications made directly to the `ExtTabCtrl` library itself must remain open source under the LGPL.
+> **Note for application developers:** `ExtTabCtrl` and `ExtPageCtrl` are licensed under the LGPL with the same linking exception as `Free Pascal` and `Lazarus`. This allows the components to be linked into commercial and closed-source applications without disclosing your overall application's source code. Only modifications made directly to the `ExtTabCtrl` and `ExtPageCtrl` libraries must remain open source under the LGPL.
+
+## Disclaimer
+
+> I am not a professional programmer. These components are a hobby project, written for my own use and shared in the hope that others may find it useful. They have been developed and tested to the best of my ability, but they come with **no warranty of any kind**. Use them at your own risk. Bug reports and suggestions are welcome, but I cannot guarantee timely responses or fixes.
