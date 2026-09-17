@@ -635,6 +635,7 @@ end;
 
 constructor TExtFontOptions.Create;
 begin
+  inherited Create;
   FFontSize := 0;
   FFontColor := clNone;
   FFontStyles := [];
@@ -680,22 +681,37 @@ end;
 
 procedure TExtImagesWidth.SetWidth(Index, Value: Integer);
 var
-  Ptr: ^Integer;
+  Changed: Boolean;
 begin
-  Ptr := nil;
+  Changed := False;
   case Index of
-    0: Ptr := @FPrevWidth;
-    1: Ptr := @FNextWidth;
-    2: Ptr := @FAddWidth;
-    3: Ptr := @FCloseWidth;
-    4: Ptr := @FTabWidth;
+    0: if FPrevWidth <> Value then
+    begin
+      FPrevWidth := Value;
+      Changed := True;
+    end;
+    1: if FNextWidth <> Value then
+    begin
+      FNextWidth := Value;
+      Changed := True;
+    end;
+    2: if FAddWidth <> Value then
+    begin
+      FAddWidth := Value;
+      Changed := True;
+    end;
+    3: if FCloseWidth <> Value then
+    begin
+      FCloseWidth := Value;
+      Changed := True;
+    end;
+    4: if FTabWidth <> Value then
+    begin
+      FTabWidth := Value;
+      Changed := True;
+    end;
   end;
-  if Ptr = nil then Exit;
-  if Ptr^ <> Value then
-  begin
-    Ptr^ := Value;
-    if Assigned(FOnChange) then FOnChange(Self);
-  end;
+  if Changed and Assigned(FOnChange) then FOnChange(Self);
 end;
 
 { TExtTab }
@@ -871,8 +887,8 @@ end;
 
 destructor TExtTab.Destroy;
 begin
-  FImage.Free;
-  FFontOptions.Free;
+  FreeAndNil(FImage);
+  FreeAndNil(FFontOptions);
   inherited Destroy;
 end;
 
@@ -3020,7 +3036,7 @@ begin
 
     for i := 0 to FTabs.Count - 1 do
     begin
-      if i = FDragIndex then Continue;
+      if (i = FDragIndex) or not FTabs[i].Visible then Continue;
 
       TabRect := FTabs[i].FBoundRect;
       GetAxisSpan(TabRect, TabStart, TabEnd);
