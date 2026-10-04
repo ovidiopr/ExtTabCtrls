@@ -87,6 +87,8 @@ type
     FPendingPageIndex: Integer;
     FIsSyncing: Boolean;
     FInLayout: Boolean;
+    FAddingPage: Boolean;
+    FTabChangedPending: Boolean;
 
     FOnPageAdded: TExtPageNotifyEvent;
     FOnPageDeleting: TExtPageDeletingEvent;
@@ -96,6 +98,7 @@ type
     FUserOnTabReordered: TTabReorderedEvent;
     FUserOnTabDeleting: TTabIndexAllowEvent;
     FUserOnTabDeleted: TNotifyEvent;
+    FUserOnTabChanged: TTabChangedEvent;
 
     function GetPage(Index: Integer): TExtPage;
     function GetPageCount: Integer;
@@ -112,6 +115,7 @@ type
     procedure InternalTabReordered(Sender: TObject; OldIndex, NewIndex: Integer);
     procedure InternalTabDeleting(Sender: TObject; Index: Integer; var Allow: Boolean);
     procedure InternalTabDeleted(Sender: TObject);
+    procedure InternalTabChanged(Sender: TObject; NewIndex: Integer);
 
     // Forwarding getters/setters for the intercepted events
     procedure SetOnAddButtonClick(AValue: TButtonClickEvent);
@@ -122,6 +126,8 @@ type
     function GetOnTabDeleting: TTabIndexAllowEvent;
     procedure SetOnTabDeleted(AValue: TNotifyEvent);
     function GetOnTabDeleted: TNotifyEvent;
+    procedure SetOnTabChanged(AValue: TTabChangedEvent);
+    function GetOnTabChanged: TTabChangedEvent;
   protected
     procedure SetTabIndex(AValue: Integer); override;
     procedure NormalizeState; override;
@@ -173,6 +179,7 @@ type
     property OnTabReordered: TTabReorderedEvent read GetOnTabReordered write SetOnTabReordered;
     property OnTabDeleting: TTabIndexAllowEvent read GetOnTabDeleting write SetOnTabDeleting;
     property OnTabDeleted: TNotifyEvent read GetOnTabDeleted write SetOnTabDeleted;
+    property OnTabChanged: TTabChangedEvent read GetOnTabChanged write SetOnTabChanged;
     property OnAddButtonClick: TButtonClickEvent read GetOnAddButtonClick write SetOnAddButtonClick;
   end;
 
@@ -437,16 +444,22 @@ begin
   inherited OnTabReordered := @InternalTabReordered;
   inherited OnTabDeleting := @InternalTabDeleting;
   inherited OnTabDeleted := @InternalTabDeleted;
+  inherited OnTabChanged := @InternalTabChanged;
 end;
 
 destructor TCustomExtPageCtrl.Destroy;
 var
   i: Integer;
+  P: TExtPage;
 begin
   // TExtPage instances are not owned by this control
   if Assigned(FPageList) then
     for i := 0 to FPageList.Count - 1 do
-      TExtPage(FPageList[i]).UnlinkTab;
+    begin
+      P := TExtPage(FPageList[i]);
+      P.UnlinkTab;
+      P.FPageCtrl := nil;   // don't let the page call back into a dead control
+    end;
 
   FreeAndNil(FPageList);
   inherited Destroy;
@@ -684,7 +697,34 @@ begin
     FUserOnTabDeleted(Sender);
 end;
 
+procedure TCustomExtPageCtrl.InternalTabChanged(Sender: TObject; NewIndex: Integer);
+begin
+  if FAddingPage then
+  begin
+    // The page for this tab doesn't exist yet
+    FTabChangedPending := True;
+    Exit;
+  end;
+
+  // Switch the page BEFORE the user handler runs, so ActivePage is correct
+  if not FIsSyncing then
+    SetPageIndex(NewIndex);
+
+  if Assigned(FUserOnTabChanged) then
+    FUserOnTabChanged(Sender, NewIndex);
+end;
+
 { Forwarding getters/setters for intercepted events }
+
+procedure TCustomExtPageCtrl.SetOnTabChanged(AValue: TTabChangedEvent);
+begin
+  FUserOnTabChanged := AValue;
+end;
+
+function TCustomExtPageCtrl.GetOnTabChanged: TTabChangedEvent;
+begin
+  Result := FUserOnTabChanged;
+end;
 
 procedure TCustomExtPageCtrl.SetOnAddButtonClick(AValue: TButtonClickEvent);
 begin
@@ -737,13 +777,20 @@ begin
   Result := nil;
   NewPage := nil;
 
+  FAddingPage := True;
+  FTabChangedPending := False;
   FIsSyncing := True;
   try
     NewTab := inherited AddTab(ACaption);
   finally
     FIsSyncing := False;
   end;
-  if NewTab = nil then Exit;
+  if NewTab = nil then
+  begin
+    FAddingPage := False;
+    FTabChangedPending := False;
+    Exit;
+  end;
 
   OwnerComp := Owner;
   if OwnerComp = nil then OwnerComp := Self;
@@ -752,6 +799,8 @@ begin
     FIsSyncing := True;
     try
       NewPage := TExtPage.Create(OwnerComp);
+      // Ask to be told when the page is freed (e.g. by its owner at shutdown)
+      NewPage.FreeNotification(Self);
       NewPage.FPageCtrl := Self;
       FPageList.Add(NewPage);
       NewPage.Name := GetUniquePageName;
@@ -765,6 +814,8 @@ begin
     end;
   except
     // Roll back both the page and the tab we just created if anything fails
+    FAddingPage := False;
+    FTabChangedPending := False;
     FIsSyncing := True;
     try
       if Assigned(NewPage) then
@@ -789,6 +840,15 @@ begin
 
   LayoutPages;
 
+  // The page now exists: deliver the OnTabChanged that was held back
+  FAddingPage := False;
+  if FTabChangedPending then
+  begin
+    FTabChangedPending := False;
+    if Assigned(FUserOnTabChanged) then
+      FUserOnTabChanged(Self, TabIndex);
+  end;
+
   if Assigned(FOnPageAdded) then
     FOnPageAdded(Self, NewPage);
 
@@ -808,13 +868,20 @@ begin
   if Index < 0 then Index := 0;
   if Index > FPageList.Count then Index := FPageList.Count;
 
+  FAddingPage := True;
+  FTabChangedPending := False;
   FIsSyncing := True;
   try
     NewTab := inherited InsertTab(Index, ACaption);
   finally
     FIsSyncing := False;
   end;
-  if NewTab = nil then Exit;
+  if NewTab = nil then
+  begin
+    FAddingPage := False;
+    FTabChangedPending := False;
+    Exit;
+  end;
 
   OwnerComp := Owner;
   if OwnerComp = nil then OwnerComp := Self;
@@ -823,6 +890,8 @@ begin
     FIsSyncing := True;
     try
       NewPage := TExtPage.Create(OwnerComp);
+      // Ask to be told when the page is freed (e.g. by its owner at shutdown)
+      NewPage.FreeNotification(Self);
       NewPage.FPageCtrl := Self;
       FPageList.Insert(Index, NewPage);
       NewPage.Name := GetUniquePageName;
@@ -836,6 +905,8 @@ begin
     end;
   except
     // Roll back both the page and the tab we just created if anything fails
+    FAddingPage := False;
+    FTabChangedPending := False;
     FIsSyncing := True;
     try
       if Assigned(NewPage) then
@@ -861,6 +932,15 @@ begin
     FPageIndex := TabIndex;
 
   LayoutPages;
+
+  // The page now exists, deliver the OnTabChanged that was held back
+  FAddingPage := False;
+  if FTabChangedPending then
+  begin
+    FTabChangedPending := False;
+    if Assigned(FUserOnTabChanged) then
+      FUserOnTabChanged(Self, TabIndex);
+  end;
 
   if Assigned(FOnPageAdded) then
     FOnPageAdded(Self, NewPage);
@@ -994,14 +1074,18 @@ begin
   begin
     StreamedPage := TExtPage(AControl);
 
+    FAddingPage := True;
     FIsSyncing := True;
     try
       NewTab := inherited AddTab(StreamedPage.Name);
       StreamedPage.LinkTab(NewTab);
     finally
       FIsSyncing := False;
+      FAddingPage := False;
+      FTabChangedPending := False;
     end;
 
+    StreamedPage.FreeNotification(Self);
     StreamedPage.FPageCtrl := Self;
     StreamedPage.ControlStyle := StreamedPage.ControlStyle + [csNoDesignVisible];
     FPageList.Add(StreamedPage);
@@ -1101,12 +1185,16 @@ begin
       P := TExtPage(Controls[i]);
       if FPageList.IndexOf(P) < 0 then
       begin
+        FAddingPage := True;
         FIsSyncing := True;
         try
           P.LinkTab(inherited AddTab(P.Name));
         finally
           FIsSyncing := False;
+          FAddingPage := False;
+          FTabChangedPending := False;
         end;
+        P.FreeNotification(Self);
         P.FPageCtrl := Self;
         P.Visible := False;
         P.ControlStyle := P.ControlStyle + [csNoDesignVisible];
