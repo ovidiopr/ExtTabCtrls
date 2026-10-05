@@ -20,6 +20,7 @@ type
   private
     FPageCtrl: TCustomExtPageCtrl;
     FTab: TExtTab;
+    FTabIsPlaceholder: Boolean;
 
     FOnBeforeShow: TBeforeShowExtPageEvent;
     function GetPageIndex: Integer;
@@ -372,7 +373,10 @@ function TExtPage.GetTab: TExtTab;
 begin
   // Lazily create the Tab
   if not Assigned(FTab) then
+  begin
     FTab := TExtTab.Create(nil);
+    FTabIsPlaceholder := True;
+  end;
   Result := FTab;
 end;
 
@@ -389,30 +393,29 @@ end;
 procedure TExtPage.LinkTab(ATab: TExtTab);
 var
   OldTab: TExtTab;
+  OldWasPlaceholder: Boolean;
 begin
   if FTab = ATab then Exit;
 
   OldTab := FTab;
+  OldWasPlaceholder := FTabIsPlaceholder;
   FTab := nil;
+  FTabIsPlaceholder := False;
 
-  if Assigned(OldTab) then
+  // Here we can only copy from and free a placeholder
+  if Assigned(OldTab) and OldWasPlaceholder then
   begin
-    if OldTab.Collection = nil then
+    if Assigned(ATab) then
     begin
-      // OldTab was only a placeholder
-      if Assigned(ATab) then
-      begin
-        ATab.Caption := OldTab.Caption;
-        ATab.Color := OldTab.Color;
-        ATab.StripeColor := OldTab.StripeColor;
-        ATab.ImageIndex := OldTab.ImageIndex;
-        ATab.ShowCloseButton := OldTab.ShowCloseButton;
-        ATab.Visible := OldTab.Visible;
-        ATab.Hint := OldTab.Hint;
-      end;
-      OldTab.Free;
+      ATab.Caption := OldTab.Caption;
+      ATab.Color := OldTab.Color;
+      ATab.StripeColor := OldTab.StripeColor;
+      ATab.ImageIndex := OldTab.ImageIndex;
+      ATab.ShowCloseButton := OldTab.ShowCloseButton;
+      ATab.Visible := OldTab.Visible;
+      ATab.Hint := OldTab.Hint;
     end;
-    // else: OldTab was a "real" collection-owned tab
+    OldTab.Free;
   end;
 
   FTab := ATab;
@@ -421,9 +424,11 @@ end;
 procedure TExtPage.UnlinkTab;
 begin
   if not Assigned(FTab) then Exit;
-  if FTab.Collection = nil then
+  // Free only our own placeholder
+  if FTabIsPlaceholder then
     FTab.Free;
   FTab := nil;
+  FTabIsPlaceholder := False;
 end;
 
 { TCustomExtPageCtrl }
@@ -1135,6 +1140,7 @@ var
   i: Integer;
   P: TExtPage;
   NewIdx: Integer;
+  PageRemoved: Boolean;
 begin
   inherited NormalizeState;
   if not Assigned(FPageList) or not Assigned(Tabs) then Exit;
@@ -1143,22 +1149,35 @@ begin
   FIsSyncing := True;
   try
     // Remove pages that no longer have a corresponding Tab
+    PageRemoved := False;
     i := FPageList.Count - 1;
     while i >= 0 do
     begin
       P := TExtPage(FPageList[i]);
 
-      // Only remove pages whose FTab was linked and has since dropped out
-      // of the Tabs collection
-      if Assigned(P.FTab) and (P.FTab.Collection = nil) then
+      // Only pages linked to a collection tab that has since left the collection
+      if Assigned(P.FTab) and (not P.FTabIsPlaceholder) and (P.FTab.Collection = nil) then
       begin
         FPageList.Delete(i);
         P.UnlinkTab;
         P.FPageCtrl := nil;
         P.Parent := nil;
         Application.ReleaseComponent(P);
+        PageRemoved := True;
       end;
       Dec(i);
+    end;
+
+    // Hide everything and let SetPageIndex show the page that matches TabIndex
+    if PageRemoved then
+    begin
+      for i := 0 to FPageList.Count - 1 do
+      begin
+        P := TExtPage(FPageList[i]);
+        P.ControlStyle := P.ControlStyle + [csNoDesignVisible];
+        P.Visible := False;
+      end;
+      FPageIndex := -1;
     end;
 
     // Clamp FPageIndex to valid range
