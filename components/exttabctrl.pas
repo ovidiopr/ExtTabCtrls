@@ -369,6 +369,7 @@ type
     procedure UpdateImages; virtual;
     procedure UpdateBtnImages; virtual;
     procedure UpdateTabSizeForImages; virtual;
+    procedure TabDestroying(ATab: TExtTab); virtual;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -492,6 +493,9 @@ type
   end;
 
 implementation
+
+uses
+  LazUTF8;
 
 { TExtButtonImageIndexes }
 constructor TExtButtonImageIndexes.Create(AOwner: TCustomExtTabCtrl);
@@ -881,12 +885,16 @@ begin
   FTextWidth := -1;
   FTextHeight := -1;
   FShowCloseButton := True;
-  // Provide a default caption so new tabs are never empty
-  FCaption := 'New Tab ' + IntToStr(Index + 1);
+  // Default caption only for new tabs, a streamed tab keeps its stored caption (even if empty)
+  if not (Assigned(FOwnerCtrl) and (csLoading in FOwnerCtrl.ComponentState)) then
+    FCaption := 'New Tab ' + IntToStr(Index + 1);
 end;
 
 destructor TExtTab.Destroy;
 begin
+  // Let the owner react while the tab is still valid
+  if Assigned(FOwnerCtrl) and not (csDestroying in FOwnerCtrl.ComponentState) then
+    FOwnerCtrl.TabDestroying(Self);
   FreeAndNil(FImage);
   FreeAndNil(FFontOptions);
   inherited Destroy;
@@ -2461,27 +2469,32 @@ const
   MaxTailLen = 5;
 var
   S: String;
-  HeadLen, TailLen, Budget: Integer;
+  Len, HeadLen, TailLen, Budget: Integer;
 begin
   S := Tab.Caption;
+  // Lengths are counted in UTF-8 code points, not bytes
+  Len := UTF8Length(S);
 
   // Minimum length: pad with spaces
-  if (FMinCaptionLen > 0) and (Length(S) < FMinCaptionLen) then
-    S := S + StringOfChar(' ', FMinCaptionLen - Length(S));
+  if (FMinCaptionLen > 0) and (Len < FMinCaptionLen) then
+  begin
+    S := S + StringOfChar(' ', FMinCaptionLen - Len);
+    Len := FMinCaptionLen;
+  end;
 
   // Maximum length: middle ellipsis
-  if (FMaxCaptionLen > 0) and (Length(S) > FMaxCaptionLen) then
+  if (FMaxCaptionLen > 0) and (Len > FMaxCaptionLen) then
   begin
     if FMaxCaptionLen <= Length(EllipsisStr) then
       // No room for a head/tail split alongside the ellipsis: hard-truncate
-      S := Copy(S, 1, FMaxCaptionLen)
+      S := UTF8Copy(S, 1, FMaxCaptionLen)
     else
     begin
       // Split what's left after reserving the ellipsis between head and tail
       Budget := FMaxCaptionLen - Length(EllipsisStr);
       TailLen := Min(MaxTailLen, Budget div 2);
       HeadLen := Max(1, Budget - TailLen);
-      S := Copy(S, 1, HeadLen) + EllipsisStr + Copy(S, Length(S) - TailLen + 1, TailLen);
+      S := UTF8Copy(S, 1, HeadLen) + EllipsisStr + UTF8Copy(S, Len - TailLen + 1, TailLen);
     end;
   end;
 
@@ -3054,8 +3067,8 @@ end;
 
 procedure TCustomExtTabCtrl.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
-  Allow: Boolean;
-  Idx: Integer;
+  Idx, DropIndex: Integer;
+  DraggedTab: TExtTab;
 begin
   if csDesigning in ComponentState then Exit;
 
@@ -3067,24 +3080,12 @@ begin
       if FDragTargetIndex > FDragIndex then
         Dec(FDragTargetIndex);
 
-      Allow := True;
-      if Assigned(FOnTabReordering) then
-        FOnTabReordering(Self, FDragIndex, FDragTargetIndex, Allow);
-
-      if Allow then
-      begin
-        Self.BeginUpdate; // Batch the internal layout changes
-        try
-          FTabs.Items[FDragIndex].Index := FDragTargetIndex;
-          TabIndex := FDragTargetIndex;
-          FLayoutDirty := True;
-        finally
-          Self.EndUpdate;
-        end;
-
-        if Assigned(FOnTabReordered) then
-          FOnTabReordered(Self, FDragIndex, FDragTargetIndex);
-      end;
+      // MoveTab fires the reorder events, renumbers the active index and is overridden by descendants
+      DraggedTab := FTabs[FDragIndex];
+      DropIndex := FDragTargetIndex;
+      MoveTab(FDragIndex, DropIndex);
+      if DraggedTab.Index = DropIndex then
+        TabIndex := DropIndex;
     end;
 
     FDragging := False;
@@ -3377,6 +3378,11 @@ begin
     end;
     InvalidateLayout;
   end;
+end;
+
+procedure TCustomExtTabCtrl.TabDestroying(ATab: TExtTab);
+begin
+  // Called by TExtTab.Destroy, descendants override it to release data linked to the tab
 end;
 
 procedure TCustomExtTabCtrl.DoAutoAdjustLayout(const AMode: TLayoutAdjustmentPolicy; const AXProportion, AYProportion: Double);

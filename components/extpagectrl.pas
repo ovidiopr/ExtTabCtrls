@@ -90,6 +90,8 @@ type
     FInLayout: Boolean;
     FAddingPage: Boolean;
     FTabChangedPending: Boolean;
+    // Page being freed by user code, its tab is deleted without vetoes
+    FFreeingPage: TExtPage;
 
     FOnPageAdded: TExtPageNotifyEvent;
     FOnPageDeleting: TExtPageDeletingEvent;
@@ -110,6 +112,7 @@ type
 
     function GetUniquePageName: String;
     procedure LayoutPages;
+    procedure PageDestroying(APage: TExtPage);
 
     // Internal event handlers wired in constructor
     procedure InternalAddButtonClick(Sender: TObject);
@@ -132,6 +135,7 @@ type
   protected
     procedure SetTabIndex(AValue: Integer); override;
     procedure NormalizeState; override;
+    procedure TabDestroying(ATab: TExtTab); override;
     procedure Loaded; override;
     procedure Resize; override;
     procedure Paint; override;
@@ -252,6 +256,9 @@ end;
 
 destructor TExtPage.Destroy;
 begin
+  // A page freed directly takes its tab with it
+  if Assigned(FPageCtrl) then
+    FPageCtrl.PageDestroying(Self);
   UnlinkTab;
   inherited Destroy;
 end;
@@ -677,14 +684,47 @@ begin
   if Assigned(FUserOnTabDeleting) then
     FUserOnTabDeleting(Sender, Index, Allow);
 
-  // If the deletion is going ahead, detach and release the page
-  if Allow and Assigned(DyingPage) then
+  // A page that is already being freed cannot be kept
+  if Assigned(FFreeingPage) and (DyingPage = FFreeingPage) then
+    Allow := True;
+
+  // The page is released in TabDestroying, once the tab is really deleted
+end;
+
+procedure TCustomExtPageCtrl.PageDestroying(APage: TExtPage);
+var
+  Idx: Integer;
+begin
+  Idx := IndexOfPage(APage);
+  if Idx < 0 then Exit;
+
+  // Form or control teardown: just forget the page
+  if (csDestroying in ComponentState) or (csDestroying in APage.ComponentState) or
+     not Assigned(APage.FTab) or APage.FTabIsPlaceholder then
   begin
-    FPageList.Remove(DyingPage);
-    DyingPage.UnlinkTab;
-    DyingPage.FPageCtrl := nil;
-    DyingPage.Parent := nil;
-    Application.ReleaseComponent(DyingPage);
+    FPageList.Delete(Idx);
+    if Idx = FPageIndex then FPageIndex := -1
+    else if Idx < FPageIndex then Dec(FPageIndex);
+    APage.FPageCtrl := nil;
+    Exit;
+  end;
+
+  FFreeingPage := APage;
+  try
+    DeletePage(Idx);
+  finally
+    FFreeingPage := nil;
+  end;
+
+  // Fallback if OnTabChanging vetoed the deletion: the page goes, the tab stays
+  Idx := IndexOfPage(APage);
+  if Idx >= 0 then
+  begin
+    FPageList.Delete(Idx);
+    if Idx = FPageIndex then FPageIndex := -1
+    else if Idx < FPageIndex then Dec(FPageIndex);
+    APage.UnlinkTab;
+    APage.FPageCtrl := nil;
   end;
 end;
 
@@ -1131,6 +1171,33 @@ begin
       SetPageIndex(AValue);
     finally
       FIsSyncing := False;
+    end;
+  end;
+end;
+
+procedure TCustomExtPageCtrl.TabDestroying(ATab: TExtTab);
+var
+  i: Integer;
+  P: TExtPage;
+begin
+  inherited TabDestroying(ATab);
+  if not Assigned(FPageList) then Exit;
+
+  for i := FPageList.Count - 1 downto 0 do
+  begin
+    P := TExtPage(FPageList[i]);
+    if (P.FTab = ATab) and not P.FTabIsPlaceholder then
+    begin
+      // The tab is really being deleted, so detach its page and release it (unless it is already being freed)
+      FPageList.Delete(i);
+      P.UnlinkTab;
+      P.FPageCtrl := nil;
+      if P <> FFreeingPage then
+      begin
+        P.Parent := nil;
+        Application.ReleaseComponent(P);
+      end;
+      Exit;
     end;
   end;
 end;
