@@ -207,6 +207,8 @@ type
 
     FImages: TCustomImageList;
     FInternalImages: TCustomImageList;    // Copy of FImages with rotated images
+    FImagesChangeLink: TChangeLink;       // Rebuilds FInternalImages when FImages changes
+    FRebuildingImages: Boolean;
     FButtonImageIndexes: TExtButtonImageIndexes;
     FButtonHints: TExtButtonHints;
     FImagesWidth: TExtImagesWidth;
@@ -285,6 +287,7 @@ type
     procedure ButtonImagesChanged(Sender: TObject);
     procedure ButtonHintsChanged(Sender: TObject);
     procedure ImagesWidthChanged(Sender: TObject);
+    procedure ImagesChanged(Sender: TObject);
     function TabsViewportRect(ShowPrev, ShowNext, ShowAdd: Boolean): TRect; overload;
     function TabsViewportRect: TRect; overload;
     procedure AnchorButtons;
@@ -1424,9 +1427,17 @@ procedure TCustomExtTabCtrl.SetImages(AValue: TCustomImageList);
 begin
   if FImages <> AValue then
   begin
+    if Assigned(FImages) then
+    begin
+      FImages.UnRegisterChanges(FImagesChangeLink);
+      FImages.RemoveFreeNotification(Self);
+    end;
     FImages := AValue;
     if Assigned(FImages) then
+    begin
+      FImages.RegisterChanges(FImagesChangeLink);
       FImages.FreeNotification(Self);
+    end;
 
     // Process the external images into the internal list
     PrepareInternalTabImages(GetRotationForPosition);
@@ -1565,6 +1576,21 @@ procedure TCustomExtTabCtrl.ImagesWidthChanged(Sender: TObject);
 begin
   // Re-trigger the button image extraction
   UpdateBtnImages;
+end;
+
+procedure TCustomExtTabCtrl.ImagesChanged(Sender: TObject);
+begin
+  // Images were added, replaced or rescaled in FImages: rebuild the internal copy (guarded against re-entry)
+  if FRebuildingImages or ([csLoading, csDestroying] * ComponentState <> []) then Exit;
+  FRebuildingImages := True;
+  try
+    PrepareInternalTabImages(GetRotationForPosition);
+    UpdateBtnImages;
+    AnchorButtons;
+    InvalidateLayout;
+  finally
+    FRebuildingImages := False;
+  end;
 end;
 
 function TCustomExtTabCtrl.TabsViewportRect(ShowPrev, ShowNext, ShowAdd: Boolean): TRect;
@@ -3854,6 +3880,8 @@ begin
 
   FInternalImages := TImageList.Create(self);
   FInternalImages.Scaled := true;
+  FImagesChangeLink := TChangeLink.Create;
+  FImagesChangeLink.OnChange := @ImagesChanged;
 
   FButtonImageIndexes := TExtButtonImageIndexes.Create(Self);
   FButtonImageIndexes.OnChange := @ButtonImagesChanged;
@@ -3913,6 +3941,8 @@ begin
   FreeAndNil(FBtnScrollPrev);
   FreeAndNil(FBtnScrollNext);
 
+  // TChangeLink.Destroy unregisters itself from FImages
+  FreeAndNil(FImagesChangeLink);
   FreeAndNil(FInternalImages);
   FreeAndNil(FButtonImageIndexes);
   FreeAndNil(FButtonHints);

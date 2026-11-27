@@ -45,6 +45,14 @@ type
     procedure WriteTabVisible(Writer: TWriter);
     procedure ReadTabHint(Reader: TReader);
     procedure WriteTabHint(Writer: TWriter);
+    procedure ReadTabValue(Reader: TReader);
+    procedure WriteTabValue(Writer: TWriter);
+    procedure ReadTabFontSize(Reader: TReader);
+    procedure WriteTabFontSize(Writer: TWriter);
+    procedure ReadTabFontColor(Reader: TReader);
+    procedure WriteTabFontColor(Writer: TWriter);
+    procedure ReadTabFontStyles(Reader: TReader);
+    procedure WriteTabFontStyles(Writer: TWriter);
   protected
     procedure DefineProperties(Filer: TFiler); override;
   public
@@ -276,6 +284,10 @@ begin
   Filer.DefineProperty('Tab.ShowCloseButton', @ReadTabShowCloseButton, @WriteTabShowCloseButton, not Tab.ShowCloseButton);
   Filer.DefineProperty('Tab.Visible', @ReadTabVisible, @WriteTabVisible, not Tab.Visible);
   Filer.DefineProperty('Tab.Hint', @ReadTabHint, @WriteTabHint, Tab.Hint <> '');
+  Filer.DefineProperty('Tab.Value', @ReadTabValue, @WriteTabValue, Tab.Value <> '');
+  Filer.DefineProperty('Tab.FontOptions.FontSize', @ReadTabFontSize, @WriteTabFontSize, Tab.FontOptions.FontSize <> 0);
+  Filer.DefineProperty('Tab.FontOptions.FontColor', @ReadTabFontColor, @WriteTabFontColor, Tab.FontOptions.FontColor <> clNone);
+  Filer.DefineProperty('Tab.FontOptions.FontStyles', @ReadTabFontStyles, @WriteTabFontStyles, Tab.FontOptions.FontStyles <> []);
 end;
 
 procedure TExtPage.ReadTabCaption(Reader: TReader);
@@ -376,6 +388,76 @@ begin
   Writer.WriteString(Tab.Hint);
 end;
 
+procedure TExtPage.ReadTabValue(Reader: TReader);
+begin
+  Tab.Value := Reader.ReadString;
+end;
+
+procedure TExtPage.WriteTabValue(Writer: TWriter);
+begin
+  Writer.WriteString(Tab.Value);
+end;
+
+procedure TExtPage.ReadTabFontSize(Reader: TReader);
+begin
+  Tab.FontOptions.FontSize := Reader.ReadInteger;
+end;
+
+procedure TExtPage.WriteTabFontSize(Writer: TWriter);
+begin
+  Writer.WriteInteger(Tab.FontOptions.FontSize);
+end;
+
+procedure TExtPage.ReadTabFontColor(Reader: TReader);
+var
+  ColorValue: Longint;
+begin
+  if Reader.NextValue = vaIdent then
+  begin
+    if not IdentToColor(Reader.ReadIdent, ColorValue) then
+      ColorValue := clNone;
+    Tab.FontOptions.FontColor := TColor(ColorValue);
+  end
+  else
+    Tab.FontOptions.FontColor := TColor(Reader.ReadInteger);
+end;
+
+procedure TExtPage.WriteTabFontColor(Writer: TWriter);
+var
+  Ident: String;
+begin
+  if ColorToIdent(Tab.FontOptions.FontColor, Ident) then
+    Writer.WriteIdent(Ident)
+  else
+    Writer.WriteInteger(Tab.FontOptions.FontColor);
+end;
+
+procedure TExtPage.ReadTabFontStyles(Reader: TReader);
+var
+  Bits: Integer;
+  Style: TFontStyle;
+  Styles: TFontStyles;
+begin
+  // Stored as a set of TFontStyle names, e.g. [fsBold, fsItalic]
+  Bits := Reader.ReadSet(TypeInfo(TFontStyle));
+  Styles := [];
+  for Style := Low(TFontStyle) to High(TFontStyle) do
+    if Ord(Style) in TIntegerSet(Bits) then
+      Include(Styles, Style);
+  Tab.FontOptions.FontStyles := Styles;
+end;
+
+procedure TExtPage.WriteTabFontStyles(Writer: TWriter);
+var
+  Bits: Integer;
+  Style: TFontStyle;
+begin
+  Bits := 0;
+  for Style in Tab.FontOptions.FontStyles do
+    Include(TIntegerSet(Bits), Ord(Style));
+  Writer.WriteSet(Bits, TypeInfo(TFontStyle));
+end;
+
 function TExtPage.GetTab: TExtTab;
 begin
   // Lazily create the Tab
@@ -421,6 +503,8 @@ begin
       ATab.ShowCloseButton := OldTab.ShowCloseButton;
       ATab.Visible := OldTab.Visible;
       ATab.Hint := OldTab.Hint;
+      ATab.Value := OldTab.Value;
+      ATab.FontOptions.Assign(OldTab.FontOptions);
     end;
     OldTab.Free;
   end;
