@@ -698,8 +698,9 @@ begin
   Idx := IndexOfPage(APage);
   if Idx < 0 then Exit;
 
-  // Form or control teardown: just forget the page
-  if (csDestroying in ComponentState) or (csDestroying in APage.ComponentState) or
+  // Teardown of the control or of the page's owner (APage itself always has csDestroying here): just forget the page
+  if (csDestroying in ComponentState) or
+     (Assigned(APage.Owner) and (csDestroying in APage.Owner.ComponentState)) or
      not Assigned(APage.FTab) or APage.FTabIsPlaceholder then
   begin
     FPageList.Delete(Idx);
