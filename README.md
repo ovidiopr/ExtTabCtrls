@@ -27,10 +27,20 @@ A feature-rich custom tab control for [Lazarus](https://www.lazarus-ide.org/) / 
 
 ## Installation
 
-1. Copy `ExtTabCtrl.pas` (and `ExtTabCtrl.lrs` if you use the built-in glyphs) into your project or a shared component directory.
-2. In the Lazarus IDE, open **Package → Open Package File** and add the unit, or simply add the unit path to your project's search path.
-3. If installing as a package, call `Register` (already present in the unit) and rebuild the IDE.
-4. The component will appear in the **Common Controls** tab of the component palette.
+1. In the Lazarus IDE, open **Package → Open Package File (.lpk)** and choose `components/design/exttabctrlsdsgn.lpk`.
+2. Click **Use → Install** and let Lazarus rebuild the IDE. The run-time package `components/exttabctrls.lpk` is compiled with it as a dependency.
+3. `TExtTabCtrl` and `TExtPageCtrl` appear on the **Misc** page of the component palette.
+
+ExtTabCtrls is also available in the Online Package Manager (**Package → Online Package Manager**, category *Tabbed Components*), which installs both packages for you.
+
+The library is split into two packages:
+
+| Package | File | Contents |
+|---|---|---|
+| `ExtTabCtrls` | `components/exttabctrls.lpk` | Run-time units `ExtTabCtrl`, `ExtPageCtrl` and `ExtTabCtrlDrawing`; depends only on the LCL |
+| `ExtTabCtrlsDsgn` | `components/design/exttabctrlsdsgn.lpk` | Component registration, palette icons, component and property editors; depends on IDEIntf |
+
+Applications only require `ExtTabCtrls` (Lazarus adds it when you drop one of the controls on a form), so the IDE interface code is not linked into your programs. If an older version of ExtTabCtrls is installed in the IDE, install `ExtTabCtrlsDsgn` as described above; `ExtTabCtrls` can stay in the list of installed packages or be removed, because the design-time package pulls it in.
 
 ---
 

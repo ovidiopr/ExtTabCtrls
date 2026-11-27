@@ -8,16 +8,8 @@ unit ExtTabCtrls;
 interface
 
 uses
-  ExtTabCtrlReg, ExtPageCtrlReg, LazarusPackageIntf;
+  ExtTabCtrl, ExtPageCtrl, ExtTabCtrlDrawing;
 
 implementation
 
-procedure Register;
-begin
-  RegisterUnit('ExtTabCtrlReg', @ExtTabCtrlReg.Register);
-  RegisterUnit('ExtPageCtrlReg', @ExtPageCtrlReg.Register);
-end;
-
-initialization
-  RegisterPackage('ExtTabCtrls', @Register);
 end.

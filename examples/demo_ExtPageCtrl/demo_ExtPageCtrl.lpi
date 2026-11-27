@@ -26,7 +26,6 @@
     <RequiredPackages>
       <Item>
         <PackageName Value="ExtTabCtrls"/>
-        <MaxVersion Major="1" Minor="2"/>
       </Item>
       <Item>
         <PackageName Value="LCL"/>

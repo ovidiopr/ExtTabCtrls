@@ -5,7 +5,7 @@ unit ExtPageCtrlReg;
 interface
 
 uses
-  Classes, SysUtils, ExtCtrls, Controls, ComponentEditors, PropEdits,
+  Classes, SysUtils, LResources, ExtCtrls, Controls, ComponentEditors, PropEdits,
   PropEditUtils, ExtTabCtrl, ExtPageCtrl;
 
 procedure Register;
@@ -185,5 +185,8 @@ begin
   RegisterPropertyEditor(TypeInfo(TAlign), TExtPage, 'Align', THiddenPropertyEditor);
   RegisterPropertyEditor(TypeInfo(TCaption), TExtPage, 'Caption', THiddenPropertyEditor);
 end;
+
+initialization
+  {$I ExtPageCtrl.lrs}
 
 end.

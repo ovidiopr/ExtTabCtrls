@@ -1,0 +1,21 @@
+{
+  "UpdatePackageData" : {
+    "Name" : "ExtTabCtrls",
+    "DownloadZipURL" : "https://github.com/ovidiopr/ExtTabCtrls/archive/refs/tags/v1.4.0.zip",
+    "DisableInOPM" : false
+  },
+  "UpdateLazPackages" : [
+    {
+      "Name" : "exttabctrls.lpk",
+      "Version" : "1.4.0.0",
+      "ForceNotify" : false,
+      "InternalVersion" : 1
+    },
+    {
+      "Name" : "exttabctrlsdsgn.lpk",
+      "Version" : "1.4.0.0",
+      "ForceNotify" : false,
+      "InternalVersion" : 1
+    }
+  ]
+}

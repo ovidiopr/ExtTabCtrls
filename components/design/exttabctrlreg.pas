@@ -6,7 +6,7 @@ unit ExtTabCtrlReg;
 interface
 
 uses
-  Classes, SysUtils, ComponentEditors, PropEdits, GraphPropEdits, ImgList,
+  Classes, SysUtils, LResources, ComponentEditors, PropEdits, GraphPropEdits, ImgList,
   ExtTabCtrl;
 
 type
@@ -136,8 +136,27 @@ begin
   Result := 4;
 end;
 
+// Designer callbacks used by the run-time units through ExtTabDesignModified/ExtTabDesignSelect
+procedure ExtTabDesignerModified(AComponent: TComponent);
+begin
+  if Assigned(GlobalDesignHook) then
+  begin
+    GlobalDesignHook.Modified(AComponent);
+    GlobalDesignHook.RefreshPropertyValues;
+  end;
+end;
+
+procedure ExtTabDesignerSelect(APersistent: TPersistent);
+begin
+  if Assigned(GlobalDesignHook) then
+    GlobalDesignHook.SelectOnlyThis(APersistent);
+end;
+
 procedure Register;
 begin
+  ExtTabDesignModified := @ExtTabDesignerModified;
+  ExtTabDesignSelect := @ExtTabDesignerSelect;
+
   RegisterComponents('Misc', [TExtTabCtrl]);
   RegisterComponentEditor(TExtTabCtrl, TExtTabCtrlEditor);
 
@@ -214,5 +233,7 @@ begin
     Result := TC.Images;
 end;
 
+initialization
+  {$I ExtTabCtrl.lrs}
 
 end.

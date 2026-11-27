@@ -6,8 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Controls, Graphics, LCLType, Types, Math, LResources,
-  Contnrs, Forms, ExtCtrls, ImgList, ExtTabCtrl, ExtTabCtrlDrawing
-  {$IFDEF LCLDesign}, PropEdits{$ENDIF};
+  Contnrs, Forms, ExtCtrls, ImgList, ExtTabCtrl, ExtTabCtrlDrawing;
 
 type
   TExtPage = class;
@@ -1387,25 +1386,20 @@ begin
 
   inherited MouseDown(Button, Shift, X, Y);
 
-  if (csDesigning in ComponentState) then
+  // ExtTabDesignSelect is only set inside the IDE, by the design-time package
+  if (csDesigning in ComponentState) and Assigned(ExtTabDesignSelect) then
   begin
-    {$IFDEF LCLDesign}
     {$IFDEF DARWIN}
     if (Button = mbLeft) and (ssCtrl in Shift) then
       Button := mbRight;
     {$ENDIF}
 
     case Button of
-      mbRight: begin
-        if Assigned(GlobalDesignHook) then
-          GlobalDesignHook.SelectOnlyThis(Self);
-      end;
-      mbLeft: begin
-        if (Idx >= 0) and Assigned(GlobalDesignHook) and Assigned(Page[Idx]) then
-          GlobalDesignHook.SelectOnlyThis(Page[Idx]);
-      end;
+      mbRight: ExtTabDesignSelect(Self);
+      mbLeft:
+        if (Idx >= 0) and Assigned(Page[Idx]) then
+          ExtTabDesignSelect(Page[Idx]);
     end;
-    {$ENDIF}
   end;
 end;
 
@@ -1513,6 +1507,5 @@ end;
 
 initialization
   RegisterClass(TExtPage);
-  {$I ExtPageCtrl.lrs}
 
 end.

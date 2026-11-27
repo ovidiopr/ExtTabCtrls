@@ -7,7 +7,7 @@ interface
 uses
   Classes, SysUtils, Controls, FPImage, GraphType, Graphics, Buttons, LCLType,
   Types, Math, LResources, LCLIntf, ImgList, LMessages, Forms, Menus,
-  LazMethodList, ExtTabCtrlDrawing{$IFDEF LCLDesign}, PropEdits{$ENDIF};
+  LazMethodList, ExtTabCtrlDrawing;
 
 type
   TExtTabOption = (etoActivateNewTab, etoShowCloseButton, etoShowAddButton,
@@ -495,6 +495,15 @@ type
     property OnDrawButton;
   end;
 
+type
+  // Designer callbacks, set by the design-time package ExtTabCtrlsDsgn and nil in applications
+  TExtTabDesignModifiedProc = procedure(AComponent: TComponent);
+  TExtTabDesignSelectProc = procedure(APersistent: TPersistent);
+
+var
+  ExtTabDesignModified: TExtTabDesignModifiedProc = nil;
+  ExtTabDesignSelect: TExtTabDesignSelectProc = nil;
+
 implementation
 
 uses
@@ -923,13 +932,8 @@ begin
     FOwnerCtrl.InvalidateLayout;
 
     // Notify the IDE that the internal structure changed so it updates the Object Inspector
-    {$IFDEF LCLDesign}
-    if (csDesigning in FOwnerCtrl.ComponentState) and Assigned(GlobalDesignHook) then
-    begin
-      GlobalDesignHook.Modified(FOwnerCtrl);
-      GlobalDesignHook.RefreshPropertyValues;
-    end;
-    {$ENDIF}
+    if (csDesigning in FOwnerCtrl.ComponentState) and Assigned(ExtTabDesignModified) then
+      ExtTabDesignModified(FOwnerCtrl);
   end;
 end;
 
@@ -2842,14 +2846,9 @@ begin
   FTabIndex := AValue;
   EnsureTabVisible(FTabIndex);
 
-  {$IFDEF LCLDesign}
-  if Assigned(GlobalDesignHook) then
-  begin
-    GlobalDesignHook.Modified(Self);
-    // Forces the Object Inspector to reload lists
-    GlobalDesignHook.RefreshPropertyValues;
-  end;
-  {$ENDIF}
+  // Marks the form modified and forces the Object Inspector to reload lists
+  if Assigned(ExtTabDesignModified) then
+    ExtTabDesignModified(Self);
 
   Invalidate;
 end;
@@ -2867,10 +2866,8 @@ begin
     {$ENDIF}
 
     // Force the Object Inspector to instantly select this component
-    {$IFDEF LCLDesign}
-    if Assigned(GlobalDesignHook) then
-      GlobalDesignHook.SelectOnlyThis(Self);
-    {$ENDIF}
+    if Assigned(ExtTabDesignSelect) then
+      ExtTabDesignSelect(Self);
 
     if Button = mbLeft then
     begin
@@ -2894,10 +2891,8 @@ begin
       SetDesignTabIndex(Idx);
 
       // Load the selected tab into the property editor on click
-      {$IFDEF LCLDesign}
-      if (Button = mbLeft) and Assigned(GlobalDesignHook) then
-        GlobalDesignHook.SelectOnlyThis(Tabs[Idx]);
-      {$ENDIF}
+      if (Button = mbLeft) and Assigned(ExtTabDesignSelect) then
+        ExtTabDesignSelect(Tabs[Idx]);
     end;
 
     Exit; // Bypass runtime mouse tracking actions
@@ -3952,8 +3947,5 @@ begin
 
   inherited Destroy;
 end;
-
-initialization
-  {$I ExtTabCtrl.lrs}
 
 end.

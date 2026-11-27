@@ -3,7 +3,7 @@
   <Package Version="5">
     <PathDelim Value="\"/>
     <Name Value="ExtTabCtrls"/>
-    <Type Value="RunAndDesignTime"/>
+    <Type Value="RunTime"/>
     <Author Value="Ovidio Y. Peña Rodríguez"/>
     <CompilerOptions>
       <Version Value="11"/>
@@ -11,12 +11,6 @@
       <SearchPaths>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
-      <Other>
-        <CustomOptions Value="-dLCLDesign"/>
-        <OtherDefines Count="1">
-          <Define0 Value="LCLDesign"/>
-        </OtherDefines>
-      </Other>
     </CompilerOptions>
     <Description Value="Feature-rich custom tab and page controls for Lazarus including Chrome, MacOS, and Delphi styles with drag-reordering and vertical orientation support."/>
     <License Value="This component is released under the GNU Lesser General Public License v2.1 or later (LGPL-2.1-or-later).
@@ -24,23 +18,22 @@
 You are free to use, study, modify, and redistribute it under the terms of the LGPL. If you distribute a modified version of this library component, you must do so under the same license.
 
 See https://www.gnu.org/licenses/lgpl-2.1.html for the full license text."/>
-    <Version Major="1" Minor="3"/>
+    <Version Major="1" Minor="4"/>
     <Files>
       <Item>
-        <Filename Value="exttabctrlreg.pas"/>
-        <HasRegisterProc Value="True"/>
-        <UnitName Value="ExtTabCtrlReg"/>
+        <Filename Value="exttabctrl.pas"/>
+        <UnitName Value="ExtTabCtrl"/>
       </Item>
       <Item>
-        <Filename Value="extpagectrlreg.pas"/>
-        <HasRegisterProc Value="True"/>
-        <UnitName Value="ExtPageCtrlReg"/>
+        <Filename Value="extpagectrl.pas"/>
+        <UnitName Value="ExtPageCtrl"/>
+      </Item>
+      <Item>
+        <Filename Value="exttabctrldrawing.pas"/>
+        <UnitName Value="ExtTabCtrlDrawing"/>
       </Item>
     </Files>
     <RequiredPkgs>
-      <Item>
-        <PackageName Value="IDEIntf"/>
-      </Item>
       <Item>
         <PackageName Value="LCLBase"/>
       </Item>
